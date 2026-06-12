@@ -93,6 +93,17 @@ export default function TabulasiPage() {
     return name.replace(/\(\d+\)/g, "").trim().toUpperCase();
   };
 
+  // Helper to format subdistrict/kecamatan names to Title Case and strip BPS codes
+  const formatKecName = (name: string): string => {
+    if (!name) return "";
+    let cleaned = name.replace(/\(\d+\)/g, "").trim();
+    return cleaned
+      .toLowerCase()
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   // Fetch and parse data
   const fetchData = async () => {
     try {
@@ -254,11 +265,12 @@ export default function TabulasiPage() {
     reject: 0
   });
 
-  // Unique lists from pml_ppl.csv
+  // Unique lists from both data sources
   const uniqueKecList = useMemo(() => {
-    const list = Array.from(new Set(pmlPplData.map(item => item.kec))).filter(Boolean).sort();
-    return list;
-  }, [pmlPplData]);
+    const formattedSubdistricts = rawData.map(r => formatKecName(r.nama_kec)).filter(Boolean);
+    const formattedAllKecs = pmlPplData.map(item => formatKecName(item.kec)).filter(Boolean);
+    return Array.from(new Set([...formattedSubdistricts, ...formattedAllKecs])).sort();
+  }, [rawData, pmlPplData]);
 
   // List of PMLs filtered by selected Kecamatan
   const pmlList = useMemo(() => {
@@ -374,11 +386,11 @@ export default function TabulasiPage() {
     const statsMap: { [kecName: string]: KecStats } = {};
 
     // Load subdistrict names from koseka mapping or scraped data
-    const subdistricts = Array.from(new Set(rawData.map(r => r.nama_kec).filter(Boolean)));
+    const subdistricts = rawData.map(r => formatKecName(r.nama_kec)).filter(Boolean);
     
     // Fallback: load all Kec from pml_ppl.csv
-    const allKecs = Array.from(new Set(pmlPplData.map(item => item.kec))).filter(Boolean);
-    const combinedKecs = Array.from(new Set([...subdistricts, ...allKecs])).sort();
+    const allKecs = pmlPplData.map(item => formatKecName(item.kec)).filter(Boolean);
+    const uniqueKecNames = Array.from(new Set([...subdistricts, ...allKecs])).sort();
 
     // Helper to get koseka name for a kecamatan
     const getKosekaForKec = (kecName: string): string => {
@@ -387,11 +399,11 @@ export default function TabulasiPage() {
       return record ? record.koseka : "-";
     };
 
-    combinedKecs.forEach(kec => {
+    uniqueKecNames.forEach(kec => {
       const normalizedKecName = normalizeKec(kec);
       
       const kecStats: KecStats = {
-        kecName: kec,
+        kecName: kec, // formatted Title Case name
         koseka: getKosekaForKec(kec),
         categories: {},
         total: createEmptyCellStats()
