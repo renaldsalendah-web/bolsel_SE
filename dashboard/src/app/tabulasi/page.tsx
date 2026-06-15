@@ -85,7 +85,7 @@ export default function TabulasiPage() {
   const [selectedKec, setSelectedKec] = useState<string>("all");
   const [selectedPml, setSelectedPml] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"pcl" | "kec">("pcl");
+  const [activeTab, setActiveTab] = useState<"pcl" | "pml" | "kec">("pcl");
 
   // Helper to normalize subdistrict/kecamatan names for comparison
   const normalizeKec = (name: string): string => {
@@ -381,6 +381,126 @@ export default function TabulasiPage() {
     });
   }, [pclStats, searchQuery]);
 
+  // Calculate Table 3: PML (Pengawas) detail stats
+  const pmlStats = useMemo<RowStats[]>(() => {
+    // 1. Get PMLs
+    const pmls = pmlPplData.filter(item => item.jabatan_petugas === "PML");
+
+    // 2. Pre-filter PMLs by selected Kecamatan / PML filter
+    const filteredPmls = pmls.filter(pml => {
+      const matchKec = selectedKec === "all" ? true : normalizeKec(pml.kec) === normalizeKec(selectedKec);
+      const matchPml = selectedPml === "all" ? true : pml.nama_petugas === selectedPml;
+      return matchKec && matchPml;
+    });
+
+    // 3. Map PMLs to their stats (aggregated from PPLs in the same Kecamatan)
+    const stats: RowStats[] = filteredPmls.map(pml => {
+      const normalizedKecName = normalizeKec(pml.kec);
+      
+      // Get all PPLs in the same subdistrict
+      const pplsInKec = pmlPplData.filter(item => item.jabatan_petugas === "PPL" && normalizeKec(item.kec) === normalizedKecName);
+      const emailsInKec = new Set(pplsInKec.map(ppl => ppl.email.toLowerCase()));
+
+      // Get records for these PPLs
+      const records = rawData.filter(r => emailsInKec.has(r.searchedEmail) || normalizeKec(r.nama_kec) === normalizedKecName);
+
+      const rowStats: RowStats = {
+        nama: pml.nama_petugas,
+        email: pml.email,
+        kec: pml.kec,
+        jabatan: pml.jabatan_petugas,
+        categories: {},
+        total: createEmptyCellStats()
+      };
+
+      // Initialize categories
+      categories.forEach(cat => {
+        rowStats.categories[cat] = createEmptyCellStats();
+      });
+
+      // Aggregate records
+      records.forEach(r => {
+        const cat = getScaleCategory(r.scale);
+        const status = r.status.toLowerCase().trim();
+
+        const isOpen = status === "open" || status === "";
+        const isDraft = status === "draft";
+        const isSubmit = status === "submit" || status === "submitted";
+        const isApprove = status === "approve" || status === "approved";
+        const isReject = status === "reject" || status === "rejected";
+        const isRealisasi = isSubmit || isApprove || isReject;
+
+        const addStats = (cell: CellStats) => {
+          cell.target++;
+          if (isRealisasi) cell.realisasi++;
+          if (isOpen) cell.open++;
+          if (isDraft) cell.draft++;
+          if (isSubmit) cell.submit++;
+          if (isApprove) cell.approve++;
+          if (isReject) cell.reject++;
+        };
+
+        if (cat && rowStats.categories[cat]) {
+          addStats(rowStats.categories[cat]);
+        }
+        addStats(rowStats.total);
+      });
+
+      return rowStats;
+    });
+
+    return stats.sort((a, b) => a.nama.localeCompare(b.nama));
+  }, [rawData, pmlPplData, selectedKec, selectedPml, categories]);
+
+  // Filtered Table 3 based on search query
+  const filteredPmlStats = useMemo(() => {
+    return pmlStats.filter(pml => {
+      if (!searchQuery) return true;
+      return pml.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
+             pml.kec.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+  }, [pmlStats, searchQuery]);
+
+  // Overview stats for PML tab (prevents double counting)
+  const selectedPmlOverviewStats = useMemo(() => {
+    const totalStats = createEmptyCellStats();
+    
+    // Find the unique kecamatan names of all currently visible PMLs
+    const visibleKecs = new Set(filteredPmlStats.map(pml => normalizeKec(pml.kec)));
+    
+    // Find unique PPLs in these kecamatans
+    const ppls = pmlPplData.filter(item => item.jabatan_petugas === "PPL" && visibleKecs.has(normalizeKec(item.kec)));
+    const pplEmails = new Set(ppls.map(p => p.email.toLowerCase()));
+    
+    // Sum stats of records for these PPLs
+    const records = rawData.filter(r => pplEmails.has(r.searchedEmail) || visibleKecs.has(normalizeKec(r.nama_kec)));
+    
+    records.forEach(r => {
+      const status = r.status.toLowerCase().trim();
+      const isOpen = status === "open" || status === "";
+      const isDraft = status === "draft";
+      const isSubmit = status === "submit" || status === "submitted";
+      const isApprove = status === "approve" || status === "approved";
+      const isReject = status === "reject" || status === "rejected";
+      const isRealisasi = isSubmit || isApprove || isReject;
+
+      totalStats.target++;
+      if (isRealisasi) totalStats.realisasi++;
+      if (isOpen) totalStats.open++;
+      if (isDraft) totalStats.draft++;
+      if (isSubmit) totalStats.submit++;
+      if (isApprove) totalStats.approve++;
+      if (isReject) totalStats.reject++;
+    });
+    
+    const completionRate = totalStats.target > 0 ? (totalStats.realisasi / totalStats.target) * 100 : 0;
+    
+    return {
+      ...totalStats,
+      completionRate
+    };
+  }, [rawData, pmlPplData, filteredPmlStats]);
+
   // Calculate Table 2: Kecamatan Overview stats
   const kecamatanStats = useMemo<KecStats[]>(() => {
     const statsMap: { [kecName: string]: KecStats } = {};
@@ -530,6 +650,39 @@ export default function TabulasiPage() {
 
         csvRows.push(row.join(","));
       });
+    } else if (activeTab === "pml") {
+      filteredPmlStats.forEach(pml => {
+        const row: (string | number)[] = [
+          `"${pml.nama}"`,
+          `"${pml.kec}"`,
+          `"${pml.jabatan}"`
+        ];
+
+        categories.forEach(cat => {
+          const stats = pml.categories[cat];
+          row.push(
+            stats.target,
+            stats.realisasi,
+            stats.open,
+            stats.draft,
+            stats.submit,
+            stats.approve,
+            stats.reject
+          );
+        });
+
+        row.push(
+          pml.total.target,
+          pml.total.realisasi,
+          pml.total.open,
+          pml.total.draft,
+          pml.total.submit,
+          pml.total.approve,
+          pml.total.reject
+        );
+
+        csvRows.push(row.join(","));
+      });
     } else {
       kecamatanStats.forEach(kec => {
         const row: (string | number)[] = [
@@ -570,7 +723,9 @@ export default function TabulasiPage() {
     const link = document.createElement("a");
     const filename = activeTab === "pcl" 
       ? `tabulasi_pcl_monitoring_se2026_${Date.now()}.csv`
-      : `tabulasi_kecamatan_monitoring_se2026_${Date.now()}.csv`;
+      : activeTab === "pml"
+        ? `tabulasi_pml_monitoring_se2026_${Date.now()}.csv`
+        : `tabulasi_kecamatan_monitoring_se2026_${Date.now()}.csv`;
     link.setAttribute("href", url);
     link.setAttribute("download", filename);
     document.body.appendChild(link);
@@ -753,6 +908,17 @@ export default function TabulasiPage() {
                 Detail Petugas (PCL / PPL)
               </button>
               <button
+                onClick={() => { setActiveTab("pml"); setSelectedKec("all"); }}
+                className={`py-4 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                  activeTab === "pml"
+                    ? "border-orange-500 text-orange-500 dark:text-orange-400"
+                    : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Detail Pengawas (PML)
+              </button>
+              <button
                 onClick={() => { setActiveTab("kec"); setSelectedKec("all"); }}
                 className={`py-4 px-6 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
                   activeTab === "kec"
@@ -769,9 +935,9 @@ export default function TabulasiPage() {
             <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8">
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 
-                {/* Left: Interactive Dropdown selectors (only for PCL tab) */}
+                {/* Left: Interactive Dropdown selectors */}
                 <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
-                  {activeTab === "pcl" && (
+                  {(activeTab === "pcl" || activeTab === "pml") && (
                     <>
                       {/* Kecamatan Dropdown */}
                       <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold w-full sm:w-auto">
@@ -806,12 +972,12 @@ export default function TabulasiPage() {
                   )}
 
                   {/* Search Input */}
-                  {activeTab === "pcl" && (
+                  {(activeTab === "pcl" || activeTab === "pml") && (
                     <div className="relative w-full sm:w-64">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="text"
-                        placeholder="Cari nama PCL..."
+                        placeholder={activeTab === "pcl" ? "Cari nama PCL..." : "Cari nama PML..."}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-semibold"
@@ -862,6 +1028,32 @@ export default function TabulasiPage() {
                       <span className="text-xl font-extrabold text-orange-500">{selectedOverviewStats.completionRate.toFixed(1)}%</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div className="bg-orange-500 h-full rounded-full" style={{ width: `${selectedOverviewStats.completionRate}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "pml" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Total PML Tampil</span>
+                    <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block">{filteredPmlStats.length} pengawas</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Total Beban Target</span>
+                    <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block">{selectedPmlOverviewStats.target.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Total Realisasi</span>
+                    <span className="text-xl font-extrabold text-emerald-500 mt-1 block">{selectedPmlOverviewStats.realisasi.toLocaleString("id-ID")}</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Persentase Selesai</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xl font-extrabold text-orange-500">{selectedPmlOverviewStats.completionRate.toFixed(1)}%</span>
+                      <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div className="bg-orange-500 h-full rounded-full" style={{ width: `${selectedPmlOverviewStats.completionRate}%` }}></div>
                       </div>
                     </div>
                   </div>
@@ -930,6 +1122,69 @@ export default function TabulasiPage() {
                             {/* Total cell */}
                             <td className="p-2 align-top bg-orange-500/5 dark:bg-orange-500/0">
                               <CellContent stats={pcl.total} highlight={true} />
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                ) : activeTab === "pml" ? (
+                  // =================== TABLE 3: DETAIL PML ===================
+                  <table className="w-full border-collapse border border-slate-200 dark:border-slate-800 min-w-[1200px]">
+                    <thead>
+                      {/* Top Header Row */}
+                      <tr className="bg-orange-100/80 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 text-center">
+                        <th rowSpan={2} className="px-4 py-4 border-r border-slate-200 dark:border-slate-700 text-sm font-extrabold text-left w-56 sticky left-0 bg-orange-100 dark:bg-slate-800 z-10">
+                          Nama PML (Pengawas)
+                        </th>
+                        <th colSpan={7} className="py-2 border-r border-slate-200 dark:border-slate-700 text-sm font-extrabold tracking-wide uppercase">
+                          Skala Prelist
+                        </th>
+                        <th rowSpan={2} className="px-4 py-4 text-sm font-extrabold uppercase">
+                          Total
+                        </th>
+                      </tr>
+                      {/* Sub Header Row */}
+                      <tr className="bg-slate-100/90 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-bold">
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">Keluarga</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMK</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/BANGUNAN LAIN</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UM</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/KELUARGA</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UB</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/DUMMY</th>
+                      </tr>
+                    </thead>
+                    
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                      {filteredPmlStats.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-16 text-center text-slate-400 font-medium text-sm">
+                            Tidak ada data PML ditemukan untuk filter ini.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPmlStats.map((pml, idx) => (
+                          <tr 
+                            key={idx} 
+                            className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all border-b border-slate-100 dark:border-slate-800"
+                          >
+                            {/* PML Name cell */}
+                            <td className="px-4 py-3 border-r border-slate-200 dark:border-slate-800 font-bold text-slate-950 dark:text-white sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                              <div>{pml.nama}</div>
+                              <div className="text-[10px] text-slate-400 font-normal mt-0.5">{pml.kec}</div>
+                            </td>
+
+                            {/* Category cells */}
+                            {categories.map((cat, cIdx) => (
+                              <td key={cIdx} className="p-2 border-r border-slate-200 dark:border-slate-800 align-top">
+                                <CellContent stats={pml.categories[cat]} />
+                              </td>
+                            ))}
+
+                            {/* Total cell */}
+                            <td className="p-2 align-top bg-orange-500/5 dark:bg-orange-500/0">
+                              <CellContent stats={pml.total} highlight={true} />
                             </td>
                           </tr>
                         ))

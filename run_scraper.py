@@ -121,8 +121,49 @@ def run_scraper(use_test_emails=False):
     checkpoint_file = "checkpoint.json"
     
     emails = load_emails(email_file)
-    print(f"Loaded {len(emails)} emails from '{email_file}' to scrape.")
     
+    # Check for order argument in command line or prompt user
+    reverse_order = False
+    if "--bottom" in sys.argv or "--reverse" in sys.argv:
+        reverse_order = True
+        print("Scraping order set via CLI: BOTTOM TO TOP (Reversed).")
+    elif "--top" in sys.argv:
+        reverse_order = False
+        print("Scraping order set via CLI: TOP TO BOTTOM (Normal).")
+    else:
+        # Interactive prompt if no CLI argument for order is specified
+        print("\nPilih urutan scraping email:")
+        print("  1. Dari Atas ke Bawah (Normal - default)")
+        print("  2. Dari Bawah ke Atas (Terbalik/Reverse)")
+        try:
+            choice = input("Masukkan pilihan (1/2) [1]: ").strip()
+            if choice == "2":
+                reverse_order = True
+                print("Order: BOTTOM TO TOP (Reversed).")
+            else:
+                print("Order: TOP TO BOTTOM (Normal).")
+        except (KeyboardInterrupt, SystemExit):
+            print("\nExiting script.")
+            sys.exit(0)
+        except Exception:
+            print("Invalid input, defaulting to: TOP TO BOTTOM (Normal).")
+            
+    # Reverse emails if reverse_order is True
+    if reverse_order:
+        emails.reverse()
+        
+    print(f"Loaded {len(emails)} emails from '{email_file}' to scrape.")
+    print("Scraping queue preview:")
+    if len(emails) <= 6:
+        for i, email in enumerate(emails):
+            print(f"  {i+1}. {email}")
+    else:
+        for i in range(3):
+            print(f"  {i+1}. {emails[i]}")
+        print("  ...")
+        for i in range(len(emails) - 3, len(emails)):
+            print(f"  {i+1}. {emails[i]}")
+            
     # Check if we should start fresh
     use_fresh = "--fresh" in sys.argv
     resume_index = 0
@@ -131,12 +172,41 @@ def run_scraper(use_test_emails=False):
         try:
             with open(checkpoint_file, "r") as f:
                 cp = json.load(f)
-                resume_index = cp.get("last_index", 0)
-                if resume_index < len(emails):
-                    print(f"Resuming from checkpoint: starting at email #{resume_index + 1} ({emails[resume_index]})")
-                else:
-                    resume_index = 0
-                    print("Checkpoint index exceeds email list length. Starting fresh.")
+                last_email = cp.get("last_email")
+                cp_reverse = cp.get("reverse_order", None)
+                
+                # Check if the checkpoint's order is different from the current run's order
+                if cp_reverse is not None and cp_reverse != reverse_order:
+                    print(f"\n[!] PERINGATAN: Urutan checkpoint ({'Bawah ke Atas' if cp_reverse else 'Atas ke Bawah'}) "
+                          f"berbeda dengan urutan jalankan saat ini ({'Bawah ke Atas' if reverse_order else 'Atas ke Bawah'}).")
+                    print("Melanjutkan dengan arah berbeda dapat menyebabkan email terlewat atau terduplikat.")
+                    try:
+                        choice = input("Mulai baru dari awal (fresh)? (y/n) [y]: ").strip().lower()
+                        if choice == "n":
+                            print("Melanjutkan dari email terakhir...")
+                        else:
+                            use_fresh = True
+                    except Exception:
+                        use_fresh = True
+                
+                if not use_fresh:
+                    # Try to locate by email string instead of index
+                    if last_email and last_email in emails:
+                        resume_index = emails.index(last_email) + 1
+                        if resume_index < len(emails):
+                            print(f"Resuming from checkpoint: found last email '{last_email}' in the list. "
+                                  f"Starting at email #{resume_index + 1} ({emails[resume_index]})")
+                        else:
+                            resume_index = 0
+                            print(f"Checkpoint email '{last_email}' is the last item in the list. Starting fresh.")
+                    else:
+                        # Fallback to index if email is not found
+                        resume_index = cp.get("last_index", 0)
+                        if resume_index < len(emails):
+                            print(f"Resuming from checkpoint: starting at email #{resume_index + 1} ({emails[resume_index]})")
+                        else:
+                            resume_index = 0
+                            print("Checkpoint index exceeds email list length or email not found. Starting fresh.")
         except Exception as cp_err:
             print(f"Warning: Could not read checkpoint file: {cp_err}. Starting fresh.")
             
@@ -288,6 +358,7 @@ def run_scraper(use_test_emails=False):
                         json.dump({
                             "last_index": index + 1,
                             "last_email": email,
+                            "reverse_order": reverse_order,
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                         }, f, indent=2)
                 except Exception as cp_write_err:
