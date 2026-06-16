@@ -784,101 +784,108 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Dropdowns */}
-                  <div className="flex flex-wrap gap-3 w-full md:w-auto items-center justify-end">
-                    
-                    {/* Filter Status */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <select
-                         value={statusFilter}
-                         onChange={(e) => setStatusFilter(e.target.value)}
-                         className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium"
-                      >
-                        <option value="all">Semua Status</option>
-                        {filterOptions.statuses.map((s, idx) => {
-                          let label = s;
-                          if (s.toLowerCase() === "open") label = "Terbuka (Open)";
-                          else if (s.toLowerCase() === "draft") label = "Draft";
-                          else if (s.toLowerCase() === "submitted by pencacah") label = "Submitted by Pencacah";
-                          else if (s.toLowerCase() === "rejected by pengawas") label = "Rejected by Pengawas";
-                          return (
-                            <option key={idx} value={s}>{label}</option>
-                          );
-                        })}
-                      </select>
-                    </div>
-
-                    {/* Filter Kecamatan */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      <select
-                        value={selectedSubdistrict}
-                        onChange={(e) => setSelectedSubdistrict(e.target.value)}
-                        className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium"
-                      >
-                        <option value="all">Semua Kecamatan</option>
-                        {filterOptions.subdistricts.map((sub, idx) => (
-                          <option key={idx} value={sub}>{sub}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Filter Koseka */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <Building className="w-3.5 h-3.5 text-slate-500" />
-                      <select
-                        value={selectedKoseka}
-                        onChange={(e) => setSelectedKoseka(e.target.value)}
-                        className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium"
-                      >
-                        <option value="all">Semua Koseka</option>
-                        {filterOptions.kosekas.map((kos, idx) => (
-                          <option key={idx} value={kos}>{kos}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Filter Skala */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <Layers className="w-3.5 h-3.5 text-slate-500" />
-                      <select
-                        value={scaleFilter}
-                        onChange={(e) => setScaleFilter(e.target.value)}
-                        className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium"
-                      >
-                        <option value="all">Semua Skala</option>
-                        {filterOptions.scales.map((sc, idx) => (
-                          <option key={idx} value={sc}>{sc}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Filter Petugas */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                      <User className="w-3.5 h-3.5 text-slate-500" />
-                      <select
-                        value={selectedOfficer}
-                        onChange={(e) => setSelectedOfficer(e.target.value)}
-                        className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium max-w-[150px] sm:max-w-none"
-                      >
-                        <option value="all">Semua Petugas</option>
-                        {filterOptions.officers.map((off, idx) => (
-                          <option key={idx} value={off}>{off.replace(/Pencacah$/, "")}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Export Button */}
+                  {/* Actions / Export Button */}
+                  <div className="w-full md:w-auto flex items-center justify-end">
                     <button
                       onClick={handleExportCSV}
-                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-1 text-xs font-semibold bg-white dark:bg-slate-950 cursor-pointer"
+                      className="w-full md:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center gap-2 text-sm font-semibold bg-white dark:bg-slate-950 cursor-pointer"
                       title="Ekspor CSV Hasil Filter"
                     >
                       <Download className="w-4 h-4 text-orange-500" />
-                      <span className="hidden sm:inline">Ekspor</span>
+                      <span>Ekspor Data</span>
                     </button>
+                  </div>
 
+                </div>
+
+                {/* Dropdowns Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-4">
+                  
+                  {/* Filter Status */}
+                  <div className="relative w-full">
+                    <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs font-semibold appearance-none cursor-pointer"
+                    >
+                      <option value="all">Semua Status</option>
+                      {filterOptions.statuses.map((s, idx) => {
+                        let label = s;
+                        if (s.toLowerCase() === "open") label = "Terbuka (Open)";
+                        else if (s.toLowerCase() === "draft") label = "Draft";
+                        else if (s.toLowerCase() === "submitted by pencacah") label = "Submitted by Pencacah";
+                        else if (s.toLowerCase() === "rejected by pengawas") label = "Rejected by Pengawas";
+                        return (
+                          <option key={idx} value={s}>{label}</option>
+                        );
+                      })}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+
+                  {/* Filter Kecamatan */}
+                  <div className="relative w-full">
+                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={selectedSubdistrict}
+                      onChange={(e) => setSelectedSubdistrict(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs font-semibold appearance-none cursor-pointer"
+                    >
+                      <option value="all">Semua Kecamatan</option>
+                      {filterOptions.subdistricts.map((sub, idx) => (
+                        <option key={idx} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+
+                  {/* Filter Koseka */}
+                  <div className="relative w-full">
+                    <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={selectedKoseka}
+                      onChange={(e) => setSelectedKoseka(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs font-semibold appearance-none cursor-pointer"
+                    >
+                      <option value="all">Semua Koseka</option>
+                      {filterOptions.kosekas.map((kos, idx) => (
+                        <option key={idx} value={kos}>{kos}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+
+                  {/* Filter Skala */}
+                  <div className="relative w-full">
+                    <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={scaleFilter}
+                      onChange={(e) => setScaleFilter(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs font-semibold appearance-none cursor-pointer"
+                    >
+                      <option value="all">Semua Skala</option>
+                      {filterOptions.scales.map((sc, idx) => (
+                        <option key={idx} value={sc}>{sc}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+
+                  {/* Filter Petugas */}
+                  <div className="relative w-full">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <select
+                      value={selectedOfficer}
+                      onChange={(e) => setSelectedOfficer(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs font-semibold appearance-none cursor-pointer"
+                    >
+                      <option value="all">Semua Petugas</option>
+                      {filterOptions.officers.map((off, idx) => (
+                        <option key={idx} value={off}>{off.replace(/Pencacah$/, "")}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
 
                 </div>
