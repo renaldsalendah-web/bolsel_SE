@@ -184,7 +184,6 @@ export default function DashboardPage() {
     let openCount = 0;
     let draftCount = 0;
     let submitCount = 0;
-    let approveCount = 0;
     let rejectCount = 0;
     let emptyCount = 0;
 
@@ -194,18 +193,16 @@ export default function DashboardPage() {
         openCount++;
       } else if (s === "draft") {
         draftCount++;
-      } else if (s === "submit" || s === "submitted") {
+      } else if (s === "submitted by pencacah" || s === "submit" || s === "submitted") {
         submitCount++;
-      } else if (s === "approve" || s === "approved") {
-        approveCount++;
-      } else if (s === "reject" || s === "rejected") {
+      } else if (s === "rejected by pengawas" || s === "reject" || s === "rejected") {
         rejectCount++;
       } else if (s === "kosong" || s === "") {
         emptyCount++;
       }
     });
 
-    const otherCount = submitCount + approveCount + rejectCount;
+    const otherCount = submitCount + rejectCount;
     const completionRate = total > 0 ? (otherCount / total) * 100 : 0;
     const activeOfficers = new Set(rawData.map(r => r.officer).filter(Boolean)).size;
 
@@ -214,7 +211,6 @@ export default function DashboardPage() {
       openCount,
       draftCount,
       submitCount,
-      approveCount,
       rejectCount,
       emptyCount,
       otherCount,
@@ -250,9 +246,10 @@ export default function DashboardPage() {
         counts[r.officer] = { total: 0, open: 0, selesai: 0 };
       }
       counts[r.officer].total++;
-      if (r.status.toLowerCase() === "open") {
+      const s = r.status.toLowerCase().trim();
+      if (s === "open" || s === "draft" || s === "kosong" || s === "") {
         counts[r.officer].open++;
-      } else if (r.status.toLowerCase() !== "kosong") {
+      } else if (s === "submitted by pencacah" || s === "rejected by pengawas" || s === "submit" || s === "submitted" || s === "reject" || s === "rejected") {
         counts[r.officer].selesai++;
       }
     });
@@ -380,25 +377,18 @@ export default function DashboardPage() {
           Draft
         </span>
       );
-    } else if (s === "submit" || s === "submitted") {
+    } else if (s === "submitted by pencacah" || s === "submit" || s === "submitted") {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-500 border border-teal-500/20">
           <Send className="w-3.5 h-3.5" />
-          Submit
+          Submitted by Pencacah
         </span>
       );
-    } else if (s === "approve" || s === "approved") {
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Approve
-        </span>
-      );
-    } else if (s === "reject" || s === "rejected") {
+    } else if (s === "rejected by pengawas" || s === "reject" || s === "rejected") {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20">
           <XCircle className="w-3.5 h-3.5" />
-          Reject
+          Rejected by Pengawas
         </span>
       );
     } else if (s === "kosong" || s === "") {
@@ -551,7 +541,7 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
               
               {/* Total Target Prelist */}
               <motion.div
@@ -591,11 +581,31 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
 
-              {/* Status Draft */}
+              {/* Status Submitted by Pencacah */}
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
+              >
+                <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Submitted by Pencacah</span>
+                <span className="text-3xl font-extrabold mt-2 block text-teal-500">
+                  {stats.submitCount.toLocaleString("id-ID")}
+                </span>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-teal-500 h-full rounded-full" style={{ width: `${stats.total > 0 ? (stats.submitCount / stats.total) * 100 : 0}%` }}></div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">{stats.total > 0 ? ((stats.submitCount / stats.total) * 100).toFixed(1) : "0.0"}%</span>
+                </div>
+              </motion.div>
+
+              {/* Status Draft */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -611,27 +621,7 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
 
-              {/* Status Submit */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
-                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
-              >
-                <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Status Submit</span>
-                <span className="text-3xl font-extrabold mt-2 block text-teal-500">
-                  {stats.submitCount.toLocaleString("id-ID")}
-                </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-teal-500 h-full rounded-full" style={{ width: `${stats.total > 0 ? (stats.submitCount / stats.total) * 100 : 0}%` }}></div>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400">{stats.total > 0 ? ((stats.submitCount / stats.total) * 100).toFixed(1) : "0.0"}%</span>
-                </div>
-              </motion.div>
-
-              {/* Status Approve */}
+              {/* Status Rejected by Pengawas */}
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -639,27 +629,7 @@ export default function DashboardPage() {
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Status Approve</span>
-                <span className="text-3xl font-extrabold mt-2 block text-emerald-500">
-                  {stats.approveCount.toLocaleString("id-ID")}
-                </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${stats.total > 0 ? (stats.approveCount / stats.total) * 100 : 0}%` }}></div>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400">{stats.total > 0 ? ((stats.approveCount / stats.total) * 100).toFixed(1) : "0.0"}%</span>
-                </div>
-              </motion.div>
-
-              {/* Status Reject */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.25 }}
-                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
-              >
-                <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Status Reject</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Rejected by Pengawas</span>
                 <span className="text-3xl font-extrabold mt-2 block text-red-500">
                   {stats.rejectCount.toLocaleString("id-ID")}
                 </span>
@@ -802,9 +772,16 @@ export default function DashboardPage() {
                          className="py-2 px-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-medium"
                       >
                         <option value="all">Semua Status</option>
-                        {filterOptions.statuses.map((s, idx) => (
-                          <option key={idx} value={s}>{s}</option>
-                        ))}
+                        {filterOptions.statuses.map((s, idx) => {
+                          let label = s;
+                          if (s.toLowerCase() === "open") label = "Terbuka (Open)";
+                          else if (s.toLowerCase() === "draft") label = "Draft";
+                          else if (s.toLowerCase() === "submitted by pencacah") label = "Submitted by Pencacah";
+                          else if (s.toLowerCase() === "rejected by pengawas") label = "Rejected by Pengawas";
+                          return (
+                            <option key={idx} value={s}>{label}</option>
+                          );
+                        })}
                       </select>
                     </div>
 
