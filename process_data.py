@@ -34,10 +34,12 @@ def run_git_commands(timestamp_str):
         files_to_add = [
             "scraped_data.csv",
             "update_data.csv",
+            "dashboard_scraped_data.csv",
             os.path.join("data", "pml_ppl.csv"),
             os.path.join("data", "ringkasan_Assign.csv"),
             os.path.join("data", "ringkasan_Progres.csv"),
             os.path.join("dashboard", "public", "update_data.csv"),
+            os.path.join("dashboard", "public", "dashboard_scraped_data.csv"),
             os.path.join("dashboard", "public", "pml_ppl.csv"),
             os.path.join("dashboard", "public", "ringkasan_Assign.csv"),
             os.path.join("dashboard", "public", "ringkasan_Progres.csv"),
@@ -67,6 +69,127 @@ def run_git_commands(timestamp_str):
         print("Git push completed successfully!")
     except Exception as e:
         print(f"Warning: Failed to execute Git commands: {e}")
+
+def process_dashboard_scraped_data():
+    scraped_file = "dashboard_scraped_data.csv"
+    koseka_file = os.path.join("data", "koseka.csv")
+    pml_ppl_file = os.path.join("data", "pml_ppl.csv")
+    
+    print("\n" + "="*50)
+    print("PROCESSING DASHBOARD SCRAPED DATA")
+    print("="*50)
+    
+    if not os.path.exists(scraped_file):
+        print(f"Error: Dashboard scraped file '{scraped_file}' not found. Cannot process.")
+        return False
+        
+    if not os.path.exists(koseka_file):
+        print(f"Error: Koseka mapping file '{koseka_file}' not found. Cannot process.")
+        return False
+        
+    if not os.path.exists(pml_ppl_file):
+        print(f"Error: PML PPL file '{pml_ppl_file}' not found. Cannot process.")
+        return False
+
+    # 1. Load subdistrict and Koseka mapping
+    print(f"Loading subdistrict and Koseka mapping from '{koseka_file}'...")
+    koseka_map = {}
+    try:
+        with open(koseka_file, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                kd_kec = row.get('kd_kec', '').strip()
+                if kd_kec:
+                    koseka_map[kd_kec] = {
+                        'nama_kec': row.get('nama_kec', '').strip(),
+                        'koseka': row.get('koseka', '').strip()
+                    }
+        print(f"Loaded {len(koseka_map)} subdistrict mappings.")
+    except Exception as e:
+        print(f"Error reading koseka file: {e}")
+        return False
+
+    # 2. Load PML PPL mapping
+    print(f"Loading PML PPL mapping from '{pml_ppl_file}'...")
+    pml_ppl_map = {}
+    try:
+        with open(pml_ppl_file, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                email = row.get('email', '').strip().lower()
+                if email:
+                    pml_ppl_map[email] = {
+                        'nama_petugas': row.get('nama_petugas', '').strip(),
+                        'jabatan_petugas': row.get('jabatan_petugas', '').strip()
+                    }
+        print(f"Loaded {len(pml_ppl_map)} PML PPL mappings.")
+    except Exception as e:
+        print(f"Error reading pml_ppl file: {e}")
+        return False
+
+    # 3. Read and process dashboard_scraped_data.csv
+    print(f"Processing '{scraped_file}'...")
+    processed_rows = []
+    headers = []
+    try:
+        with open(scraped_file, mode='r', encoding='utf-8') as infile:
+            reader = csv.reader(infile)
+            try:
+                headers = next(reader)
+            except StopIteration:
+                print("Error: dashboard_scraped_data.csv is empty.")
+                return False
+            
+            # Original 8 headers, we will append the 4 additional headers
+            additional_headers = ['nama_petugas', 'jabatan_petugas', 'nama_kec', 'koseka']
+            base_headers = headers[:8]
+            output_headers = base_headers + additional_headers
+            
+            email_idx = 1
+            sls_idx = 2
+            
+            for row in reader:
+                if not row or len(row) < 3:
+                    continue
+                
+                base_row = row[:8]
+                while len(base_row) < 8:
+                    base_row.append('0')
+                
+                email = base_row[email_idx].strip().lower()
+                sls_code = base_row[sls_idx].strip()
+                
+                # Match email in PML PPL map
+                nama_petugas = ""
+                jabatan_petugas = ""
+                if email in pml_ppl_map:
+                    nama_petugas = pml_ppl_map[email]['nama_petugas']
+                    jabatan_petugas = pml_ppl_map[email]['jabatan_petugas']
+                
+                # Match SLS Code in Koseka map
+                digits_only = "".join([c for c in sls_code if c.isdigit()])
+                kd_kec_7 = digits_only[:7]
+                
+                nama_kec = ""
+                koseka = ""
+                if kd_kec_7 in koseka_map:
+                    nama_kec = koseka_map[kd_kec_7]['nama_kec']
+                    koseka = koseka_map[kd_kec_7]['koseka']
+                
+                new_row = base_row + [nama_petugas, jabatan_petugas, nama_kec, koseka]
+                processed_rows.append(new_row)
+                
+        # Write processed data back to dashboard_scraped_data.csv
+        with open(scraped_file, mode='w', newline='', encoding='utf-8') as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(output_headers)
+            writer.writerows(processed_rows)
+            
+        print(f"Successfully processed '{scraped_file}' with {len(processed_rows)} rows.")
+        return True
+    except Exception as e:
+        print(f"Error processing dashboard scraped data: {e}")
+        return False
 
 def process_data():
     scraped_file = "scraped_data.csv"
@@ -207,6 +330,9 @@ def process_data():
         print(f"Error mapping and merging scraped data: {e}")
         return False
 
+    # 2b. Process dashboard scraped data
+    process_dashboard_scraped_data()
+
     # 3. Copy to Next.js dashboard public folder & write timestamp
     public_dir = os.path.join("dashboard", "public")
     if os.path.exists(public_dir):
@@ -215,6 +341,12 @@ def process_data():
             # Copy CSV
             shutil.copy2(output_file, os.path.join(public_dir, "update_data.csv"))
             print(f"Copied '{output_file}' to dashboard public folder.")
+            
+            # Copy dashboard_scraped_data.csv
+            dashboard_scraped_src = "dashboard_scraped_data.csv"
+            if os.path.exists(dashboard_scraped_src):
+                shutil.copy2(dashboard_scraped_src, os.path.join(public_dir, "dashboard_scraped_data.csv"))
+                print(f"Copied '{dashboard_scraped_src}' to dashboard public folder.")
             
             # Copy PML PPL CSV
             pml_ppl_src = os.path.join("data", "pml_ppl.csv")

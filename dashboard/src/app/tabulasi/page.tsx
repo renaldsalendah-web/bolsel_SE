@@ -1010,6 +1010,12 @@ export default function TabulasiPage() {
               >
                 Tabulasi
               </a>
+              <a 
+                href="/petugas" 
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              >
+                Petugas
+              </a>
             </nav>
 
             <button
