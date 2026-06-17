@@ -70,6 +70,31 @@ interface OfficerStats {
   realisasi: number; // sum of draft + submit + reject + approve
 }
 
+// Interface for aggregated kecamatan stats (grouped PML data)
+interface KecamatanStats {
+  namaKec: string;
+  slsCount: number;
+  open: number;
+  draft: number;
+  submit: number;
+  reject: number;
+  approve: number;
+  total: number;
+  progress: number;
+  realisasi: number;
+  pmlList: {
+    namaPetugas: string;
+    email: string;
+    slsCount: number;
+    open: number;
+    draft: number;
+    submit: number;
+    reject: number;
+    approve: number;
+    total: number;
+  }[];
+}
+
 export default function PetugasPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [rawData, setRawData] = useState<DashboardRecord[]>([]);
@@ -78,7 +103,7 @@ export default function PetugasPage() {
   const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Tabs and filters state
-  const [activeTab, setActiveTab] = useState<"pcl" | "pml">("pcl");
+  const [activeTab, setActiveTab] = useState<"pcl" | "pml" | "kecamatan">("pcl");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKec, setSelectedKec] = useState("all");
   const [sortBy, setSortBy] = useState<"nama" | "realisasi_desc" | "realisasi_asc" | "pct_desc" | "pct_asc">("nama");
@@ -236,6 +261,104 @@ export default function PetugasPage() {
     return Object.values(map);
   }, [rawData]);
 
+  // Aggregate stats by kecamatan (summing PML data)
+  const kecamatanStats = useMemo(() => {
+    const map: {
+      [kecName: string]: {
+        namaKec: string;
+        slsCount: number;
+        open: number;
+        draft: number;
+        submit: number;
+        reject: number;
+        approve: number;
+        total: number;
+        progress: number;
+        realisasi: number;
+        pmlMap: {
+          [email: string]: {
+            namaPetugas: string;
+            email: string;
+            slsCount: number;
+            open: number;
+            draft: number;
+            submit: number;
+            reject: number;
+            approve: number;
+            total: number;
+          };
+        };
+      };
+    } = {};
+
+    rawData.forEach(record => {
+      if (record.category.toLowerCase() !== "pengawas") return;
+      const kec = record.namaKec || "-";
+      const email = record.email.toLowerCase().trim();
+      if (!email) return;
+
+      if (!map[kec]) {
+        map[kec] = {
+          namaKec: kec,
+          slsCount: 0,
+          open: 0,
+          draft: 0,
+          submit: 0,
+          reject: 0,
+          approve: 0,
+          total: 0,
+          progress: 0,
+          realisasi: 0,
+          pmlMap: {}
+        };
+      }
+
+      const k = map[kec];
+      const slsTotal = record.open + record.draft + record.submit + record.reject + record.approve;
+      const slsProgress = record.draft + record.submit + record.reject + record.approve;
+
+      k.open += record.open;
+      k.draft += record.draft;
+      k.submit += record.submit;
+      k.reject += record.reject;
+      k.approve += record.approve;
+      k.total += slsTotal;
+      k.progress += slsProgress;
+      k.realisasi += slsProgress;
+      k.slsCount += 1;
+
+      if (!k.pmlMap[email]) {
+        k.pmlMap[email] = {
+          namaPetugas: record.namaPetugas || email.split("@")[0],
+          email: record.email,
+          slsCount: 0,
+          open: 0,
+          draft: 0,
+          submit: 0,
+          reject: 0,
+          approve: 0,
+          total: 0,
+        };
+      }
+      const p = k.pmlMap[email];
+      p.open += record.open;
+      p.draft += record.draft;
+      p.submit += record.submit;
+      p.reject += record.reject;
+      p.approve += record.approve;
+      p.total += slsTotal;
+      p.slsCount += 1;
+    });
+
+    return Object.values(map).map(k => {
+      const { pmlMap, ...rest } = k;
+      return {
+        ...rest,
+        pmlList: Object.values(pmlMap)
+      };
+    });
+  }, [rawData]);
+
   // Unique Kecamatan List for filters
   const subdistrictOptions = useMemo(() => {
     const list = rawData.map(r => r.namaKec).filter(Boolean);
@@ -294,6 +417,55 @@ export default function PetugasPage() {
     return base;
   }, [aggregatedStats, activeTab, selectedKec, searchQuery, sortBy]);
 
+  // Filtered kecamatans list
+  const filteredKecamatans = useMemo(() => {
+    if (activeTab !== "kecamatan") return [];
+
+    const base = kecamatanStats.filter(kec => {
+      // Subdistrict filter
+      if (selectedKec !== "all" && kec.namaKec !== selectedKec) {
+        return false;
+      }
+
+      // Search query filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          kec.namaKec.toLowerCase().includes(query) ||
+          kec.pmlList.some(p =>
+            p.namaPetugas.toLowerCase().includes(query) ||
+            p.email.toLowerCase().includes(query)
+          )
+        );
+      }
+
+      return true;
+    });
+
+    // Sorting
+    if (sortBy === "nama") {
+      return base.sort((a, b) => a.namaKec.localeCompare(b.namaKec));
+    } else if (sortBy === "realisasi_desc") {
+      return base.sort((a, b) => b.realisasi - a.realisasi);
+    } else if (sortBy === "realisasi_asc") {
+      return base.sort((a, b) => a.realisasi - b.realisasi);
+    } else if (sortBy === "pct_desc") {
+      return base.sort((a, b) => {
+        const pctA = a.total > 0 ? (a.realisasi / a.total) : 0;
+        const pctB = b.total > 0 ? (b.realisasi / b.total) : 0;
+        return pctB - pctA;
+      });
+    } else if (sortBy === "pct_asc") {
+      return base.sort((a, b) => {
+        const pctA = a.total > 0 ? (a.realisasi / a.total) : 0;
+        const pctB = b.total > 0 ? (b.realisasi / b.total) : 0;
+        return pctA - pctB;
+      });
+    }
+
+    return base;
+  }, [kecamatanStats, activeTab, selectedKec, searchQuery, sortBy]);
+
   // Expand / collapse row handler
   const toggleRow = (email: string) => {
     const newExpanded = new Set(expandedRows);
@@ -307,6 +479,43 @@ export default function PetugasPage() {
 
   // Export to CSV
   const handleExportCSV = () => {
+    if (activeTab === "kecamatan") {
+      const headers = [
+        "Nama Kecamatan", "Jumlah PML", "Jumlah SLS", 
+        "Total Target", "OPEN", "DRAFT", "SUBMITTED BY Pencacah", 
+        "REJECTED BY Pengawas", "APPROVED BY Pengawas", "Progres / Realisasi", "Realisasi (%)"
+      ];
+      const csvRows = [headers.join(",")];
+
+      filteredKecamatans.forEach(k => {
+        const pct = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(1) : "0.0";
+        const row = [
+          `"${formatKecName(k.namaKec).replace(/"/g, '""')}"`,
+          k.pmlList.length,
+          k.slsCount,
+          k.total,
+          k.open,
+          k.draft,
+          k.submit,
+          k.reject,
+          k.approve,
+          k.realisasi,
+          `"${pct}%"`
+        ];
+        csvRows.push(row.join(","));
+      });
+
+      const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(csvBlob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `monitoring_kecamatan_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     const headers = [
       "Nama Petugas", "Email", "Jabatan", "Kecamatan", "Koseka", 
       "Total Target", "OPEN", "DRAFT", "SUBMITTED BY Pencacah", 
@@ -508,6 +717,20 @@ export default function PetugasPage() {
                     <UserCheck className="w-4 h-4" />
                     Pengawas (PML)
                   </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("kecamatan");
+                      setExpandedRows(new Set());
+                    }}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+                      activeTab === "kecamatan"
+                        ? "bg-white dark:bg-slate-900 text-orange-500 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <Building className="w-4 h-4" />
+                    Kecamatan
+                  </button>
                 </div>
 
                 {/* Actions */}
@@ -600,9 +823,13 @@ export default function PetugasPage() {
                     <li>
                       Untuk <span className="font-bold">Pencacah (PCL)</span>: Baris diwarnai <span className="text-red-500 font-bold">merah</span> jika status <span className="font-bold">OPEN</span>-nya masih 0 (sudah tidak memiliki sisa berkas terbuka).
                     </li>
-                  ) : (
+                  ) : activeTab === "pml" ? (
                     <li>
                       Untuk <span className="font-bold">Pengawas (PML)</span>: Baris diwarnai <span className="text-red-500 font-bold">merah</span> jika status <span className="font-bold">APPROVE</span> dan <span className="font-bold">REJECT</span>-nya masih 0 (menandakan belum ada berkas yang diperiksa).
+                    </li>
+                  ) : (
+                    <li>
+                      Untuk <span className="font-bold">Kecamatan</span>: Baris diwarnai <span className="text-red-500 font-bold">merah</span> jika status <span className="font-bold">APPROVE</span> dan <span className="font-bold">REJECT</span>-nya masih 0 (menandakan belum ada berkas PML di kecamatan tersebut yang diperiksa).
                     </li>
                   )}
                   <li>
@@ -619,9 +846,18 @@ export default function PetugasPage() {
                   <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-[0_1px_0_0_rgba(226,232,240,1)] dark:shadow-[0_1px_0_0_rgba(30,41,59,1)]">
                     <tr className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
                       <th className="py-4 px-4 w-10 bg-slate-50 dark:bg-slate-900"></th>
-                      <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Nama Petugas</th>
-                      <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Kecamatan</th>
-                      <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Koseka</th>
+                      <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">
+                        {activeTab === "kecamatan" ? "Nama Kecamatan" : "Nama Petugas"}
+                      </th>
+                      {activeTab !== "kecamatan" && (
+                        <>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Kecamatan</th>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Koseka</th>
+                        </>
+                      )}
+                      {activeTab === "kecamatan" && (
+                        <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Jumlah PML</th>
+                      )}
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">SLS</th>
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">Target</th>
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">Open</th>
@@ -635,126 +871,252 @@ export default function PetugasPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOfficers.length === 0 ? (
-                      <tr>
-                        <td colSpan={14} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
-                          Tidak ada data petugas yang cocok dengan filter atau pencarian Anda.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredOfficers.map((o) => {
-                        const isRed = activeTab === "pcl" ? isPclRed(o) : isPmlRed(o);
-                        const isExpanded = expandedRows.has(o.email);
-                        const pctRealisasi = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(1) : "0.0";
+                    {activeTab === "kecamatan" ? (
+                      filteredKecamatans.length === 0 ? (
+                        <tr>
+                          <td colSpan={13} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
+                            Tidak ada data kecamatan yang cocok dengan filter atau pencarian Anda.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredKecamatans.map((k) => {
+                          const isRed = k.approve === 0 && k.reject === 0;
+                          const isExpanded = expandedRows.has(k.namaKec);
+                          const pctRealisasi = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(1) : "0.0";
 
-                        return (
-                          <React.Fragment key={o.email}>
-                            {/* Officer Summary Row */}
-                            <tr
-                              className={`border-b border-slate-200 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-950/10 transition-colors cursor-pointer text-xs ${
-                                isRed 
-                                  ? "bg-red-500/5 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-medium" 
-                                  : ""
-                              }`}
-                              onClick={() => toggleRow(o.email)}
-                            >
-                              <td className="py-3 px-4 text-center">
-                                {isExpanded ? (
-                                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                                )}
-                              </td>
-                              <td className="py-3 px-4 font-semibold">
-                                <div>{o.namaPetugas}</div>
-                                <div className="text-[10px] text-slate-400 font-normal mt-0.5">{o.email}</div>
-                              </td>
-                              <td className="py-3 px-4 font-normal">{formatKecName(o.namaKec)}</td>
-                              <td className="py-3 px-4 font-normal">{o.koseka}</td>
-                              <td className="py-3 px-4 text-center font-normal">{o.slsList.length}</td>
-                              <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">{o.total}</td>
-                              <td className="py-3 px-4 text-center font-normal text-amber-500/90">{o.open}</td>
-                              <td className="py-3 px-4 text-center font-normal text-blue-500/90">{o.draft}</td>
-                              <td className="py-3 px-4 text-center font-normal text-teal-500/90">{o.submit}</td>
-                              <td className="py-3 px-4 text-center font-normal text-red-500/90">{o.reject}</td>
-                              <td className="py-3 px-4 text-center font-normal text-emerald-500/90">{o.approve}</td>
-                              <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.progress}</td>
-                              <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.realisasi}</td>
-                              <td className="py-3 px-4 text-center">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                                  isRed
-                                    ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                                    : parseFloat(pctRealisasi) >= 80
-                                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                    : parseFloat(pctRealisasi) >= 40
-                                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                                    : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
-                                }`}>
-                                  {pctRealisasi}%
-                                </span>
-                              </td>
-                            </tr>
-
-                            {/* Expanded SLS Detail Row */}
-                            {isExpanded && (
-                              <tr className="bg-slate-50/20 dark:bg-slate-950/20 border-b border-slate-200 dark:border-slate-800">
-                                <td colSpan={14} className="py-4 px-8">
-                                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-4 shadow-inner">
-                                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                                      <Layers className="w-3.5 h-3.5 text-orange-500" />
-                                      Detail SLS untuk {o.namaPetugas}
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                      {o.slsList.map((sls) => {
-                                        const slsPct = sls.total > 0 ? ((sls.progress / sls.total) * 100).toFixed(1) : "0.0";
-                                        return (
-                                          <div
-                                            key={sls.slsCode}
-                                            className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col gap-2.5 shadow-sm hover:shadow transition-shadow"
-                                          >
-                                            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                                              <span className="font-bold text-xs text-slate-900 dark:text-slate-200 font-mono tracking-tight">
-                                                {sls.slsCode}
-                                              </span>
-                                              <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">
-                                                {slsPct}%
-                                              </span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] text-slate-500">
-                                              <div className="flex justify-between">
-                                                <span>Target:</span>
-                                                <span className="font-bold text-slate-800 dark:text-slate-300">{sls.total}</span>
-                                              </div>
-                                              <div className="flex justify-between text-amber-500">
-                                                <span>Open:</span>
-                                                <span className="font-bold">{sls.open}</span>
-                                              </div>
-                                              <div className="flex justify-between text-blue-500">
-                                                <span>Draft:</span>
-                                                <span className="font-bold">{sls.draft}</span>
-                                              </div>
-                                              <div className="flex justify-between text-teal-500">
-                                                <span>Submit:</span>
-                                                <span className="font-bold">{sls.submit}</span>
-                                              </div>
-                                              <div className="flex justify-between text-red-500 col-span-2">
-                                                <span>Reject / Approve:</span>
-                                                <span className="font-bold">
-                                                  {sls.reject} / {sls.approve}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                          return (
+                            <React.Fragment key={k.namaKec}>
+                              {/* Kecamatan Summary Row */}
+                              <tr
+                                className={`border-b border-slate-200 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-950/10 transition-colors cursor-pointer text-xs ${
+                                  isRed 
+                                    ? "bg-red-500/5 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-medium" 
+                                    : ""
+                                }`}
+                                onClick={() => toggleRow(k.namaKec)}
+                              >
+                                <td className="py-3 px-4 text-center">
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-semibold">
+                                  {formatKecName(k.namaKec)}
+                                </td>
+                                <td className="py-3 px-4 font-normal">{k.pmlList.length} PML</td>
+                                <td className="py-3 px-4 text-center font-normal">{k.slsCount}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">{k.total}</td>
+                                <td className="py-3 px-4 text-center font-normal text-amber-500/90">{k.open}</td>
+                                <td className="py-3 px-4 text-center font-normal text-blue-500/90">{k.draft}</td>
+                                <td className="py-3 px-4 text-center font-normal text-teal-500/90">{k.submit}</td>
+                                <td className="py-3 px-4 text-center font-normal text-red-500/90">{k.reject}</td>
+                                <td className="py-3 px-4 text-center font-normal text-emerald-500/90">{k.approve}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{k.progress}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{k.realisasi}</td>
+                                <td className="py-3 px-4 text-center">
+                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                    isRed
+                                      ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                                      : parseFloat(pctRealisasi) >= 80
+                                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                      : parseFloat(pctRealisasi) >= 40
+                                      ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                      : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                                  }`}>
+                                    {pctRealisasi}%
+                                  </span>
                                 </td>
                               </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })
+
+                              {/* Expanded PML List in Kecamatan Row */}
+                              {isExpanded && (
+                                <tr className="bg-slate-50/20 dark:bg-slate-950/20 border-b border-slate-200 dark:border-slate-800">
+                                  <td colSpan={13} className="py-4 px-8">
+                                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-4 shadow-inner">
+                                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                                        <UserCheck className="w-3.5 h-3.5 text-orange-500" />
+                                        Daftar PML di Kecamatan {formatKecName(k.namaKec)}
+                                      </h4>
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse text-[11px]">
+                                          <thead>
+                                            <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider text-[9px]">
+                                              <th className="pb-2 font-bold">Nama PML</th>
+                                              <th className="pb-2 font-bold">Email</th>
+                                              <th className="pb-2 text-center font-bold">SLS</th>
+                                              <th className="pb-2 text-center font-bold">Target</th>
+                                              <th className="pb-2 text-center font-bold">Open</th>
+                                              <th className="pb-2 text-center font-bold">Draft</th>
+                                              <th className="pb-2 text-center font-bold">Submit</th>
+                                              <th className="pb-2 text-center font-bold">Reject</th>
+                                              <th className="pb-2 text-center font-bold">Approve</th>
+                                              <th className="pb-2 text-center font-bold">% Realisasi</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {k.pmlList.map((pml) => {
+                                              const pmlPct = pml.total > 0 ? (((pml.total - pml.open) / pml.total) * 100).toFixed(1) : "0.0";
+                                              const isPmlRedRow = pml.approve === 0 && pml.reject === 0;
+                                              return (
+                                                <tr key={pml.email} className={`border-b border-slate-100 dark:border-slate-800/40 py-2 ${isPmlRedRow ? "text-red-500/80 font-medium" : ""}`}>
+                                                  <td className="py-2 font-semibold">{pml.namaPetugas}</td>
+                                                  <td className="py-2 text-slate-400 font-normal">{pml.email}</td>
+                                                  <td className="py-2 text-center">{pml.slsCount}</td>
+                                                  <td className="py-2 text-center font-semibold">{pml.total}</td>
+                                                  <td className="py-2 text-center text-amber-500/90">{pml.open}</td>
+                                                  <td className="py-2 text-center text-blue-500/90">{pml.draft}</td>
+                                                  <td className="py-2 text-center text-teal-500/90">{pml.submit}</td>
+                                                  <td className="py-2 text-center text-red-500/90">{pml.reject}</td>
+                                                  <td className="py-2 text-center text-emerald-500/90">{pml.approve}</td>
+                                                  <td className="py-2 text-center">
+                                                    <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                                                      isPmlRedRow
+                                                        ? "bg-red-500/10 text-red-500"
+                                                        : parseFloat(pmlPct) >= 80
+                                                        ? "bg-emerald-500/10 text-emerald-500"
+                                                        : "bg-slate-500/10 text-slate-400"
+                                                    }`}>
+                                                      {pmlPct}%
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
+                      )
+                    ) : (
+                      filteredOfficers.length === 0 ? (
+                        <tr>
+                          <td colSpan={14} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
+                            Tidak ada data petugas yang cocok dengan filter atau pencarian Anda.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredOfficers.map((o) => {
+                          const isRed = activeTab === "pcl" ? isPclRed(o) : isPmlRed(o);
+                          const isExpanded = expandedRows.has(o.email);
+                          const pctRealisasi = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(1) : "0.0";
+
+                          return (
+                            <React.Fragment key={o.email}>
+                              {/* Officer Summary Row */}
+                              <tr
+                                className={`border-b border-slate-200 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-950/10 transition-colors cursor-pointer text-xs ${
+                                  isRed 
+                                    ? "bg-red-500/5 dark:bg-red-500/10 text-red-600 dark:text-red-400 font-medium" 
+                                    : ""
+                                }`}
+                                onClick={() => toggleRow(o.email)}
+                              >
+                                <td className="py-3 px-4 text-center">
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-semibold">
+                                  <div>{o.namaPetugas}</div>
+                                  <div className="text-[10px] text-slate-400 font-normal mt-0.5">{o.email}</div>
+                                </td>
+                                <td className="py-3 px-4 font-normal">{formatKecName(o.namaKec)}</td>
+                                <td className="py-3 px-4 font-normal">{o.koseka}</td>
+                                <td className="py-3 px-4 text-center font-normal">{o.slsList.length}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">{o.total}</td>
+                                <td className="py-3 px-4 text-center font-normal text-amber-500/90">{o.open}</td>
+                                <td className="py-3 px-4 text-center font-normal text-blue-500/90">{o.draft}</td>
+                                <td className="py-3 px-4 text-center font-normal text-teal-500/90">{o.submit}</td>
+                                <td className="py-3 px-4 text-center font-normal text-red-500/90">{o.reject}</td>
+                                <td className="py-3 px-4 text-center font-normal text-emerald-500/90">{o.approve}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.progress}</td>
+                                <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.realisasi}</td>
+                                <td className="py-3 px-4 text-center">
+                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                    isRed
+                                      ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                                      : parseFloat(pctRealisasi) >= 80
+                                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                      : parseFloat(pctRealisasi) >= 40
+                                      ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                      : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                                  }`}>
+                                    {pctRealisasi}%
+                                  </span>
+                                </td>
+                              </tr>
+
+                              {/* Expanded SLS Detail Row */}
+                              {isExpanded && (
+                                <tr className="bg-slate-50/20 dark:bg-slate-950/20 border-b border-slate-200 dark:border-slate-800">
+                                  <td colSpan={14} className="py-4 px-8">
+                                    <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-4 shadow-inner">
+                                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                                        <Layers className="w-3.5 h-3.5 text-orange-500" />
+                                        Detail SLS untuk {o.namaPetugas}
+                                      </h4>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {o.slsList.map((sls) => {
+                                          const slsPct = sls.total > 0 ? ((sls.progress / sls.total) * 100).toFixed(1) : "0.0";
+                                          return (
+                                            <div
+                                              key={sls.slsCode}
+                                              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col gap-2.5 shadow-sm hover:shadow transition-shadow"
+                                            >
+                                              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                                                <span className="font-bold text-xs text-slate-900 dark:text-slate-200 font-mono tracking-tight">
+                                                  {sls.slsCode}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                                                  {slsPct}%
+                                                </span>
+                                              </div>
+                                              <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10px] text-slate-500">
+                                                <div className="flex justify-between">
+                                                  <span>Target:</span>
+                                                  <span className="font-bold text-slate-800 dark:text-slate-300">{sls.total}</span>
+                                                </div>
+                                                <div className="flex justify-between text-amber-500">
+                                                  <span>Open:</span>
+                                                  <span className="font-bold">{sls.open}</span>
+                                                </div>
+                                                <div className="flex justify-between text-blue-500">
+                                                  <span>Draft:</span>
+                                                  <span className="font-bold">{sls.draft}</span>
+                                                </div>
+                                                <div className="flex justify-between text-teal-500">
+                                                  <span>Submit:</span>
+                                                  <span className="font-bold">{sls.submit}</span>
+                                                </div>
+                                                <div className="flex justify-between text-red-500 col-span-2">
+                                                  <span>Reject / Approve:</span>
+                                                  <span className="font-bold">
+                                                    {sls.reject} / {sls.approve}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
+                      )
                     )}
                   </tbody>
                 </table>
