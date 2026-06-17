@@ -21,6 +21,39 @@ def get_wita_timestamp():
     
     return f"{day} {month_name} {year} pukul {hour_minute} WITA"
 
+def normalize_scale(scale_str):
+    if not scale_str:
+        return "Keluarga"
+    
+    s = scale_str.strip().upper()
+    if not s or s == "-" or s == "TIDAK TERIDENTIFIKASI":
+        return "Keluarga"
+        
+    if "DUMMY" in s:
+        return "UMKM/Dummy"
+        
+    if "BANGUNAN_LAIN" in s or "BANGUNAN LAIN" in s:
+        return "UMKM Bangunan Lain"
+        
+    if "KELUARGA" in s:
+        if "UMKM" in s:
+            return "UMKM/Keluarga"
+        return "Keluarga"
+        
+    if "UMK" in s:
+        return "UMK"
+        
+    if s == "UM":
+        return "UM"
+        
+    if s == "UB":
+        return "UB"
+        
+    if "UMKM" in s:
+        return "UMKM/Keluarga"
+        
+    return "Keluarga"
+
 def run_git_commands(timestamp_str):
     print("Starting automatic Git push...")
     try:
@@ -253,6 +286,8 @@ def process_data():
                             continue
                         id_code = row[id_code_idx].strip()
                         if id_code:
+                            if len(row) > 7:
+                                row[7] = normalize_scale(row[7])
                             existing_data[id_code] = row
                 print(f"Loaded {len(existing_data)} existing records from '{output_file}'.")
             except Exception as e:
@@ -282,6 +317,9 @@ def process_data():
                 id_code = row[new_id_code_idx].strip()
                 if not id_code:
                     continue  # Skip empty/invalid identity codes
+                
+                if len(row) > 7:
+                    row[7] = normalize_scale(row[7])
                 
                 # Extract digits to match with kd_kec
                 digits_only = "".join([c for c in id_code if c.isdigit()])

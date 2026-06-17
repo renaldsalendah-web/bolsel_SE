@@ -36,7 +36,7 @@ scraper-fasih-sm/
 ├── .gitignore                   # Konfigurasi pengabaian file sensitif / sementara
 ├── README.md                    # Dokumentasi panduan ini
 ├── requirements.txt             # Dependensi Python untuk scraper
-├── run_scraper.py               # Script utama scraper terpadu (menimpa CSV & menyalin hasil ke dashboard)
+├── run_se2026.py                # Script utama scraper terpadu (menimpa CSV & menyalin hasil ke dashboard)
 └── scraped_data.csv             # Backup data lokal hasil scraper terakhir
 ```
 
@@ -64,8 +64,8 @@ npm install
 
 ### Langkah 1: Jalankan Scraper (Python)
 Jalankan scraper untuk mengambil data terbaru dari BPS FASIH:
-* **Mode Uji Coba (3 email):** `python run_scraper.py --test`
-* **Mode Produksi (168 email):** `python run_scraper.py`
+* **Mode Uji Coba (3 email):** `python run_se2026.py --test`
+* **Mode Produksi (168 email):** `python run_se2026.py`
 
 *Catatan: Setiap kali scraper selesai dijalankan, berkas `scraped_data.csv` lama akan **ditimpa secara otomatis** dengan data status terbaru, kemudian disalin langsung ke folder `dashboard/public/scraped_data.csv`.*
 

@@ -78,6 +78,23 @@ interface SLSStats {
   total: CellStats;
 }
 
+const normalizeScale = (scaleStr: string): string => {
+  if (!scaleStr) return "Keluarga";
+  const s = scaleStr.trim().toUpperCase();
+  if (!s || s === "-" || s === "TIDAK TERIDENTIFIKASI") return "Keluarga";
+  if (s.includes("DUMMY")) return "UMKM/Dummy";
+  if (s.includes("BANGUNAN_LAIN") || s.includes("BANGUNAN LAIN")) return "UMKM Bangunan Lain";
+  if (s.includes("KELUARGA")) {
+    if (s.includes("UMKM")) return "UMKM/Keluarga";
+    return "Keluarga";
+  }
+  if (s.includes("UMK")) return "UMK";
+  if (s === "UM") return "UM";
+  if (s === "UB") return "UB";
+  if (s.includes("UMKM")) return "UMKM/Keluarga";
+  return "Keluarga";
+};
+
 export default function TabulasiPage() {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -221,7 +238,7 @@ export default function TabulasiPage() {
               idCode: row[1].replace(/"/g, "").trim(),
               name: row[2].replace(/"/g, "").trim(),
               address: row[3].replace(/"/g, "").trim(),
-              scale: row[7].replace(/"/g, "").trim(),
+              scale: normalizeScale(row[7].replace(/"/g, "").trim()),
               status: row[12].replace(/"/g, "").trim(),
               officer: row[14].replace(/"/g, "").trim(),
               nama_kec: row[16] ? row[16].replace(/"/g, "").trim() : "",
@@ -300,23 +317,15 @@ export default function TabulasiPage() {
   const categories = useMemo(() => [
     "Keluarga",
     "UMK",
-    "UMKM/BANGUNAN LAIN",
+    "UMKM Bangunan Lain",
     "UM",
-    "UMKM/KELUARGA",
     "UB",
-    "UMKM/DUMMY"
+    "UMKM/Dummy",
+    "UMKM/Keluarga"
   ], []);
 
   const getScaleCategory = (scale: string): string => {
-    const s = scale.toUpperCase().trim();
-    if (s === "KELUARGA" || s === "- / KELUARGA") return "Keluarga";
-    if (s === "UMK") return "UMK";
-    if (s.includes("UMKM / BANGUNAN_LAIN") || s.includes("UMKM/BANGUNAN LAIN") || s.includes("BANGUNAN_LAIN") || s.includes("BANGUNAN LAIN")) return "UMKM/BANGUNAN LAIN";
-    if (s === "UM") return "UM";
-    if (s.includes("UMKM / KELUARGA") || s.includes("UMKM/KELUARGA")) return "UMKM/KELUARGA";
-    if (s === "UB") return "UB";
-    if (s.includes("UMKM / DUMMY") || s.includes("UMKM/DUMMY")) return "UMKM/DUMMY";
-    return "";
+    return scale;
   };
 
   // Helper to initialize empty CellStats
@@ -1343,11 +1352,11 @@ export default function TabulasiPage() {
                       <tr className="bg-slate-100/90 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-bold">
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">Keluarga</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMK</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/BANGUNAN LAIN</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM Bangunan Lain</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UM</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/KELUARGA</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UB</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/DUMMY</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Dummy</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Keluarga</th>
                       </tr>
                     </thead>
                     
@@ -1406,11 +1415,11 @@ export default function TabulasiPage() {
                       <tr className="bg-slate-100/90 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-bold">
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">Keluarga</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMK</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/BANGUNAN LAIN</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM Bangunan Lain</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UM</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/KELUARGA</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UB</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/DUMMY</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Dummy</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Keluarga</th>
                       </tr>
                     </thead>
                     
@@ -1470,11 +1479,11 @@ export default function TabulasiPage() {
                         <tr className="bg-slate-100/90 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-bold">
                           <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">Keluarga</th>
                           <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMK</th>
-                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/BANGUNAN LAIN</th>
+                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM Bangunan Lain</th>
                           <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UM</th>
-                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/KELUARGA</th>
                           <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UB</th>
-                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/DUMMY</th>
+                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Dummy</th>
+                          <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Keluarga</th>
                         </tr>
                       </thead>
                       
@@ -1584,11 +1593,11 @@ export default function TabulasiPage() {
                       <tr className="bg-slate-100/90 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-bold">
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">Keluarga</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMK</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/BANGUNAN LAIN</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM Bangunan Lain</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UM</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/KELUARGA</th>
                         <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UB</th>
-                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/DUMMY</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Dummy</th>
+                        <th className="px-2 py-2.5 border-r border-slate-200 dark:border-slate-700 w-36">UMKM/Keluarga</th>
                       </tr>
                     </thead>
                     

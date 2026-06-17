@@ -51,6 +51,23 @@ interface ScraperRecord {
   koseka: string;
 }
 
+const normalizeScale = (scaleStr: string): string => {
+  if (!scaleStr) return "Keluarga";
+  const s = scaleStr.trim().toUpperCase();
+  if (!s || s === "-" || s === "TIDAK TERIDENTIFIKASI") return "Keluarga";
+  if (s.includes("DUMMY")) return "UMKM/Dummy";
+  if (s.includes("BANGUNAN_LAIN") || s.includes("BANGUNAN LAIN")) return "UMKM Bangunan Lain";
+  if (s.includes("KELUARGA")) {
+    if (s.includes("UMKM")) return "UMKM/Keluarga";
+    return "Keluarga";
+  }
+  if (s.includes("UMK")) return "UMK";
+  if (s === "UM") return "UM";
+  if (s === "UB") return "UB";
+  if (s.includes("UMKM")) return "UMKM/Keluarga";
+  return "Keluarga";
+};
+
 export default function DashboardPage() {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -221,7 +238,7 @@ export default function DashboardPage() {
               buildingNo: row[4].replace(/"/g, "").trim(),
               nib: row[5].replace(/"/g, "").trim(),
               email: row[6].replace(/"/g, "").trim(),
-              scale: row[7].replace(/"/g, "").trim(),
+              scale: normalizeScale(row[7].replace(/"/g, "").trim()),
               unitCount: row[8].replace(/"/g, "").trim(),
               postalCode: row[9].replace(/"/g, "").trim(),
               slsChange: row[10].replace(/"/g, "").trim(),
