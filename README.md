@@ -63,11 +63,21 @@ npm install
 ## 🚀 Cara Menjalankan
 
 ### Langkah 1: Jalankan Scraper (Python)
-Jalankan scraper untuk mengambil data terbaru dari BPS FASIH:
-* **Mode Uji Coba (3 email):** `python run_se2026.py --test`
-* **Mode Produksi (168 email):** `python run_se2026.py`
+Jalankan scraper untuk mengambil data terbaru dari BPS FASIH. Anda akan ditanyakan mode eksekusi saat menjalankan script, atau Anda bisa menentukannya via argumen command-line:
 
-*Catatan: Setiap kali scraper selesai dijalankan, berkas `scraped_data.csv` lama akan **ditimpa secara otomatis** dengan data status terbaru, kemudian disalin langsung ke folder `dashboard/public/scraped_data.csv`.*
+* **Pilihan Mode Eksekusi:**
+  * **Full Run (Default):** Mengunduh ringkasan, memperbarui status rekap petugas dashboard, dan melakukan pencarian/scraping data detail mitra.
+    * Jalankan: `python run_se2026.py` atau `python run_se2026.py --full`
+  * **Dashboard Only:** Hanya mengunduh ringkasan csv (`ringkasan_Assign.csv` & `ringkasan_Progres.csv`) dan rekap petugas untuk dashboard, kemudian memproses dan mengunggahnya ke repositori (sangat cepat).
+    * Jalankan: `python run_se2026.py --dashboard`
+  * **Ambil Data Only:** Hanya melakukan pencarian dan penarikan data detail per mitra dari halaman tabel data.
+    * Jalankan: `python run_se2026.py --data` (atau `--scrape` / `--ambil-data`)
+
+* **Pilihan Target Email:**
+  * **Mode Uji Coba (3 email):** Tambahkan `--test` (contoh: `python run_se2026.py --test --dashboard` atau `python run_se2026.py --test --data`)
+  * **Mode Produksi (Semua email):** Jalankan tanpa parameter `--test`
+
+*Catatan: Setiap kali scraper selesai dijalankan, berkas CSV yang sesuai akan diperbarui secara otomatis dengan data status terbaru, kemudian diproses dan disalin langsung ke folder `dashboard/public/`.*
 
 ### Langkah 2: Jalankan Dashboard Secara Lokal (Next.js)
 Untuk melihat dashboard di browser Anda:
