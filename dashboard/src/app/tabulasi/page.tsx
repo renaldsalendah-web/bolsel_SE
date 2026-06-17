@@ -1252,7 +1252,7 @@ export default function TabulasiPage() {
                   <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
                     <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Persentase Selesai</span>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xl font-extrabold text-orange-500">{selectedOverviewStats.completionRate.toFixed(1)}%</span>
+                      <span className="text-2xl font-black text-orange-500">{selectedOverviewStats.completionRate.toFixed(2)}%</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div className="bg-orange-500 h-full rounded-full" style={{ width: `${selectedOverviewStats.completionRate}%` }}></div>
                       </div>
@@ -1278,7 +1278,7 @@ export default function TabulasiPage() {
                   <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
                     <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Persentase Selesai</span>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xl font-extrabold text-orange-500">{selectedPmlOverviewStats.completionRate.toFixed(1)}%</span>
+                      <span className="text-2xl font-black text-orange-500">{selectedPmlOverviewStats.completionRate.toFixed(2)}%</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div className="bg-orange-500 h-full rounded-full" style={{ width: `${selectedPmlOverviewStats.completionRate}%` }}></div>
                       </div>
@@ -1304,7 +1304,7 @@ export default function TabulasiPage() {
                   <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-100 dark:border-slate-900/50">
                     <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Persentase Selesai</span>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xl font-extrabold text-orange-500">{selectedSlsOverviewStats.completionRate.toFixed(1)}%</span>
+                      <span className="text-2xl font-black text-orange-500">{selectedSlsOverviewStats.completionRate.toFixed(2)}%</span>
                       <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div className="bg-orange-500 h-full rounded-full" style={{ width: `${selectedSlsOverviewStats.completionRate}%` }}></div>
                       </div>

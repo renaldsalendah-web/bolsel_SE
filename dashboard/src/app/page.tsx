@@ -340,14 +340,23 @@ export default function DashboardPage() {
   }, [rawData]);
 
   // Derived display stats that fall back to dynamic rawData-based stats
-  const { displayTotal, displayOpen, displaySubmit, displayApprove, displayDraft, displayReject } = useMemo(() => {
+  const { displayTotal, displayOpen, displaySubmit, displayApprove, displayDraft, displayReject, displayRealisasi, displayRealisasiFasih } = useMemo(() => {
+    const dTotal = totalPrelistSummary || stats.total;
+    const dOpen = summaryStatusCounts.open || stats.openCount;
+    const dSubmit = summaryStatusCounts.submit || stats.submitCount;
+    const dApprove = summaryStatusCounts.approve || stats.approvedCount;
+    const dDraft = summaryStatusCounts.draft || stats.draftCount;
+    const dReject = summaryStatusCounts.reject || stats.rejectCount;
+
     return {
-      displayTotal: totalPrelistSummary || stats.total,
-      displayOpen: summaryStatusCounts.open || stats.openCount,
-      displaySubmit: summaryStatusCounts.submit || stats.submitCount,
-      displayApprove: summaryStatusCounts.approve || stats.approvedCount,
-      displayDraft: summaryStatusCounts.draft || stats.draftCount,
-      displayReject: summaryStatusCounts.reject || stats.rejectCount,
+      displayTotal: dTotal,
+      displayOpen: dOpen,
+      displaySubmit: dSubmit,
+      displayApprove: dApprove,
+      displayDraft: dDraft,
+      displayReject: dReject,
+      displayRealisasi: dDraft + dSubmit + dApprove + dReject,
+      displayRealisasiFasih: dSubmit + dApprove + dReject
     };
   }, [totalPrelistSummary, summaryStatusCounts, stats]);
 
@@ -715,7 +724,7 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-5 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-5 mb-8">
               
               {/* Total Target Prelist */}
               <motion.div
@@ -735,11 +744,65 @@ export default function DashboardPage() {
                 </span>
               </motion.div>
 
+              {/* Total Realisasi */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.03 }}
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Total Realisasi</span>
+                  <span className="text-3xl font-extrabold mt-2 block text-emerald-500">
+                    {displayRealisasi.toLocaleString("id-ID")}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mt-3 gap-2">
+                    <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayRealisasi / displayTotal) * 100 : 0}%` }}></div>
+                    </div>
+                    <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayRealisasi / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium leading-tight">
+                    * Selain status Open (Draft + Submit + Approve + Reject)
+                  </span>
+                </div>
+              </motion.div>
+
+              {/* Realisasi via Fasih SM */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.06 }}
+                className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase tracking-wider">Realisasi via Fasih SM</span>
+                  <span className="text-3xl font-extrabold mt-2 block text-teal-500">
+                    {displayRealisasiFasih.toLocaleString("id-ID")}
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mt-3 gap-2">
+                    <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="bg-teal-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayRealisasiFasih / displayTotal) * 100 : 0}%` }}></div>
+                    </div>
+                    <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayRealisasiFasih / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
+                  </div>
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-2 block font-medium leading-tight">
+                    * Selain Open & Draft (Submit + Approve + Reject)
+                  </span>
+                </div>
+              </motion.div>
+
               {/* Status Terbuka (Open) */}
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
+                transition={{ duration: 0.3, delay: 0.09 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -747,11 +810,11 @@ export default function DashboardPage() {
                 <span className="text-3xl font-extrabold mt-2 block text-amber-500">
                   {displayOpen.toLocaleString("id-ID")}
                 </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-amber-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayOpen / displayTotal) * 100 : 0}%` }}></div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">{displayTotal > 0 ? ((displayOpen / displayTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayOpen / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
                 </div>
               </motion.div>
 
@@ -759,7 +822,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
+                transition={{ duration: 0.3, delay: 0.12 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -767,11 +830,11 @@ export default function DashboardPage() {
                 <span className="text-3xl font-extrabold mt-2 block text-teal-500">
                   {displaySubmit.toLocaleString("id-ID")}
                 </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-teal-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displaySubmit / displayTotal) * 100 : 0}%` }}></div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">{displayTotal > 0 ? ((displaySubmit / displayTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displaySubmit / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
                 </div>
               </motion.div>
 
@@ -779,7 +842,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.12 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -787,11 +850,11 @@ export default function DashboardPage() {
                 <span className="text-3xl font-extrabold mt-2 block text-emerald-500">
                   {displayApprove.toLocaleString("id-ID")}
                 </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayApprove / displayTotal) * 100 : 0}%` }}></div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">{displayTotal > 0 ? ((displayApprove / displayTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayApprove / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
                 </div>
               </motion.div>
 
@@ -799,7 +862,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
+                transition={{ duration: 0.3, delay: 0.18 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -807,11 +870,11 @@ export default function DashboardPage() {
                 <span className="text-3xl font-extrabold mt-2 block text-blue-500">
                   {displayDraft.toLocaleString("id-ID")}
                 </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-blue-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayDraft / displayTotal) * 100 : 0}%` }}></div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">{displayTotal > 0 ? ((displayDraft / displayTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayDraft / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
                 </div>
               </motion.div>
 
@@ -819,7 +882,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
+                transition={{ duration: 0.3, delay: 0.21 }}
                 className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/30 transition-all duration-300"
               >
                 <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800/40 group-hover:bg-orange-500/5 transition-colors duration-300"></div>
@@ -827,11 +890,11 @@ export default function DashboardPage() {
                 <span className="text-3xl font-extrabold mt-2 block text-red-500">
                   {displayReject.toLocaleString("id-ID")}
                 </span>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <div className="flex-1 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div className="bg-red-500 h-full rounded-full" style={{ width: `${displayTotal > 0 ? (displayReject / displayTotal) * 100 : 0}%` }}></div>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400">{displayTotal > 0 ? ((displayReject / displayTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap">{displayTotal > 0 ? ((displayReject / displayTotal) * 100).toFixed(2) : "0.00"}%</span>
                 </div>
               </motion.div>
 
@@ -882,8 +945,8 @@ export default function DashboardPage() {
                           </span>
                           <span className="font-bold text-slate-900 dark:text-white">
                             {item.value.toLocaleString("id-ID")}{" "}
-                            <span className="font-medium text-xs text-slate-500 dark:text-slate-400 ml-1">
-                              ({pct.toFixed(1)}%)
+                            <span className="font-extrabold text-xs sm:text-sm text-slate-700 dark:text-slate-200 ml-1">
+                              ({pct.toFixed(2)}%)
                             </span>
                           </span>
                         </div>

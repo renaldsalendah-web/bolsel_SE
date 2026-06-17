@@ -488,7 +488,7 @@ export default function PetugasPage() {
       const csvRows = [headers.join(",")];
 
       filteredKecamatans.forEach(k => {
-        const pct = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(1) : "0.0";
+        const pct = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(2) : "0.00";
         const row = [
           `"${formatKecName(k.namaKec).replace(/"/g, '""')}"`,
           k.pmlList.length,
@@ -524,7 +524,7 @@ export default function PetugasPage() {
     const csvRows = [headers.join(",")];
 
     filteredOfficers.forEach(o => {
-      const pct = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(1) : "0.0";
+      const pct = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(2) : "0.00";
       const row = [
         `"${o.namaPetugas.replace(/"/g, '""')}"`,
         `"${o.email.replace(/"/g, '""')}"`,
@@ -882,7 +882,7 @@ export default function PetugasPage() {
                         filteredKecamatans.map((k) => {
                           const isRed = k.approve === 0 && k.reject === 0;
                           const isExpanded = expandedRows.has(k.namaKec);
-                          const pctRealisasi = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(1) : "0.0";
+                          const pctRealisasi = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(2) : "0.00";
 
                           return (
                             <React.Fragment key={k.namaKec}>
@@ -916,7 +916,7 @@ export default function PetugasPage() {
                                 <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{k.progress}</td>
                                 <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{k.realisasi}</td>
                                 <td className="py-3 px-4 text-center">
-                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                  <span className={`inline-flex px-2.5 py-0.5 rounded-full font-extrabold text-xs ${
                                     isRed
                                       ? "bg-red-500/10 text-red-500 border border-red-500/20"
                                       : parseFloat(pctRealisasi) >= 80
@@ -957,7 +957,7 @@ export default function PetugasPage() {
                                           </thead>
                                           <tbody>
                                             {k.pmlList.map((pml) => {
-                                              const pmlPct = pml.total > 0 ? (((pml.total - pml.open) / pml.total) * 100).toFixed(1) : "0.0";
+                                              const pmlPct = pml.total > 0 ? (((pml.total - pml.open) / pml.total) * 100).toFixed(2) : "0.00";
                                               const isPmlRedRow = pml.approve === 0 && pml.reject === 0;
                                               return (
                                                 <tr key={pml.email} className={`border-b border-slate-100 dark:border-slate-800/40 py-2 ${isPmlRedRow ? "text-red-500/80 font-medium" : ""}`}>
@@ -971,7 +971,7 @@ export default function PetugasPage() {
                                                   <td className="py-2 text-center text-red-500/90">{pml.reject}</td>
                                                   <td className="py-2 text-center text-emerald-500/90">{pml.approve}</td>
                                                   <td className="py-2 text-center">
-                                                    <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                                                    <span className={`px-2 py-0.5 rounded font-extrabold text-xs ${
                                                       isPmlRedRow
                                                         ? "bg-red-500/10 text-red-500"
                                                         : parseFloat(pmlPct) >= 80
@@ -1006,7 +1006,7 @@ export default function PetugasPage() {
                         filteredOfficers.map((o) => {
                           const isRed = activeTab === "pcl" ? isPclRed(o) : isPmlRed(o);
                           const isExpanded = expandedRows.has(o.email);
-                          const pctRealisasi = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(1) : "0.0";
+                          const pctRealisasi = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(2) : "0.00";
 
                           return (
                             <React.Fragment key={o.email}>
@@ -1042,7 +1042,7 @@ export default function PetugasPage() {
                                 <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.progress}</td>
                                 <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{o.realisasi}</td>
                                 <td className="py-3 px-4 text-center">
-                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                  <span className={`inline-flex px-2.5 py-0.5 rounded-full font-extrabold text-xs ${
                                     isRed
                                       ? "bg-red-500/10 text-red-500 border border-red-500/20"
                                       : parseFloat(pctRealisasi) >= 80
@@ -1067,7 +1067,7 @@ export default function PetugasPage() {
                                       </h4>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                         {o.slsList.map((sls) => {
-                                          const slsPct = sls.total > 0 ? ((sls.progress / sls.total) * 100).toFixed(1) : "0.0";
+                                          const slsPct = sls.total > 0 ? ((sls.progress / sls.total) * 100).toFixed(2) : "0.00";
                                           return (
                                             <div
                                               key={sls.slsCode}
@@ -1077,7 +1077,7 @@ export default function PetugasPage() {
                                                 <span className="font-bold text-xs text-slate-900 dark:text-slate-200 font-mono tracking-tight">
                                                   {sls.slsCode}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                                                <span className="text-xs font-extrabold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded">
                                                   {slsPct}%
                                                 </span>
                                               </div>
