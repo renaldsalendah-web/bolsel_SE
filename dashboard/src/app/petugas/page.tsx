@@ -846,6 +846,7 @@ export default function PetugasPage() {
                   <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-[0_1px_0_0_rgba(226,232,240,1)] dark:shadow-[0_1px_0_0_rgba(30,41,59,1)]">
                     <tr className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
                       <th className="py-4 px-4 w-10 bg-slate-50 dark:bg-slate-900"></th>
+                      <th className="py-4 px-2 w-12 text-center bg-slate-50 dark:bg-slate-900">No</th>
                       <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">
                         {activeTab === "kecamatan" ? "Nama Kecamatan" : "Nama Petugas"}
                       </th>
@@ -874,12 +875,12 @@ export default function PetugasPage() {
                     {activeTab === "kecamatan" ? (
                       filteredKecamatans.length === 0 ? (
                         <tr>
-                          <td colSpan={13} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
+                          <td colSpan={14} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
                             Tidak ada data kecamatan yang cocok dengan filter atau pencarian Anda.
                           </td>
                         </tr>
                       ) : (
-                        filteredKecamatans.map((k) => {
+                        filteredKecamatans.map((k, index) => {
                           const isRed = k.approve === 0 && k.reject === 0;
                           const isExpanded = expandedRows.has(k.namaKec);
                           const pctRealisasi = k.total > 0 ? ((k.realisasi / k.total) * 100).toFixed(2) : "0.00";
@@ -901,6 +902,9 @@ export default function PetugasPage() {
                                   ) : (
                                     <ChevronRight className="w-4 h-4 text-slate-400" />
                                   )}
+                                </td>
+                                <td className="py-3 px-2 text-center font-semibold text-slate-400 dark:text-slate-500">
+                                  {index + 1}
                                 </td>
                                 <td className="py-3 px-4 font-semibold">
                                   {formatKecName(k.namaKec)}
@@ -933,7 +937,7 @@ export default function PetugasPage() {
                               {/* Expanded PML List in Kecamatan Row */}
                               {isExpanded && (
                                 <tr className="bg-slate-50/20 dark:bg-slate-950/20 border-b border-slate-200 dark:border-slate-800">
-                                  <td colSpan={13} className="py-4 px-8">
+                                  <td colSpan={14} className="py-4 px-8">
                                     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-4 shadow-inner">
                                       <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                                         <UserCheck className="w-3.5 h-3.5 text-orange-500" />
@@ -998,12 +1002,12 @@ export default function PetugasPage() {
                     ) : (
                       filteredOfficers.length === 0 ? (
                         <tr>
-                          <td colSpan={14} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
+                          <td colSpan={15} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
                             Tidak ada data petugas yang cocok dengan filter atau pencarian Anda.
                           </td>
                         </tr>
                       ) : (
-                        filteredOfficers.map((o) => {
+                        filteredOfficers.map((o, index) => {
                           const isRed = activeTab === "pcl" ? isPclRed(o) : isPmlRed(o);
                           const isExpanded = expandedRows.has(o.email);
                           const pctRealisasi = o.total > 0 ? ((o.realisasi / o.total) * 100).toFixed(2) : "0.00";
@@ -1025,6 +1029,9 @@ export default function PetugasPage() {
                                   ) : (
                                     <ChevronRight className="w-4 h-4 text-slate-400" />
                                   )}
+                                </td>
+                                <td className="py-3 px-2 text-center font-semibold text-slate-400 dark:text-slate-500">
+                                  {index + 1}
                                 </td>
                                 <td className="py-3 px-4 font-semibold">
                                   <div>{o.namaPetugas}</div>
@@ -1059,7 +1066,7 @@ export default function PetugasPage() {
                               {/* Expanded SLS Detail Row */}
                               {isExpanded && (
                                 <tr className="bg-slate-50/20 dark:bg-slate-950/20 border-b border-slate-200 dark:border-slate-800">
-                                  <td colSpan={14} className="py-4 px-8">
+                                  <td colSpan={15} className="py-4 px-8">
                                     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-4 shadow-inner">
                                       <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                                         <Layers className="w-3.5 h-3.5 text-orange-500" />
