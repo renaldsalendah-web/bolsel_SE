@@ -105,7 +105,7 @@ export default function PetugasPage() {
   const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Tabs and filters state
-  const [activeTab, setActiveTab] = useState<"pcl" | "pml" | "kecamatan">("pcl");
+  const [activeTab, setActiveTab] = useState<"pcl" | "pml" | "kecamatan" | "prioritas">("pcl");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKec, setSelectedKec] = useState("all");
   const [sortBy, setSortBy] = useState<"nama" | "realisasi_desc" | "realisasi_asc" | "pct_desc" | "pct_asc">("nama");
@@ -369,6 +369,142 @@ export default function PetugasPage() {
     return Array.from(new Set(list)).sort();
   }, [rawData]);
 
+  // Aggregate stats for SLS Prioritas
+  const prioritySLSStats = useMemo(() => {
+    const map: { [slsCode: string]: {
+      slsCode: string;
+      namaKec: string;
+      koseka: string;
+      pencacah: string;
+      pengawas: string;
+      open: number;
+      draft: number;
+      submit: number;
+      reject: number;
+      approve: number;
+      total: number;
+      progress: number;
+      realisasi: number;
+      hasPengawasRecord: boolean;
+    } } = {};
+
+    rawData.forEach(record => {
+      if (record.isPrioritas !== "Ya") return;
+      const code = record.slsCode;
+      
+      if (!map[code]) {
+        map[code] = {
+          slsCode: code,
+          namaKec: record.namaKec || "-",
+          koseka: record.koseka || "-",
+          pencacah: "-",
+          pengawas: "-",
+          open: 0,
+          draft: 0,
+          submit: 0,
+          reject: 0,
+          approve: 0,
+          total: 0,
+          progress: 0,
+          realisasi: 0,
+          hasPengawasRecord: false,
+        };
+      }
+
+      const entry = map[code];
+
+      // Collect officer names based on category
+      const isPencacah = record.category.toLowerCase() === "pencacah";
+      const isPengawas = record.category.toLowerCase() === "pengawas";
+
+      if (isPencacah) {
+        entry.pencacah = record.namaPetugas || "-";
+      } else if (isPengawas) {
+        entry.pengawas = record.namaPetugas || "-";
+      }
+
+      // If we don't have a Pengawas record yet, or this record IS the Pengawas record,
+      // update the status counts.
+      if (isPengawas || (!entry.hasPengawasRecord)) {
+        entry.open = record.open;
+        entry.draft = record.draft;
+        entry.submit = record.submit;
+        entry.reject = record.reject;
+        entry.approve = record.approve;
+        
+        const slsTotal = record.open + record.draft + record.submit + record.reject + record.approve;
+        const slsProgress = record.draft + record.submit + record.reject + record.approve;
+        
+        entry.total = slsTotal;
+        entry.progress = slsProgress;
+        entry.realisasi = slsProgress;
+
+        if (isPengawas) {
+          entry.hasPengawasRecord = true;
+        }
+      }
+
+      // Ensure we fill in Kecamatan and Koseka if not already populated
+      if (record.namaKec && entry.namaKec === "-") {
+        entry.namaKec = record.namaKec;
+      }
+      if (record.koseka && entry.koseka === "-") {
+        entry.koseka = record.koseka;
+      }
+    });
+
+    return Object.values(map);
+  }, [rawData]);
+
+  // Filtered priority SLS list
+  const filteredPrioritySLS = useMemo(() => {
+    if (activeTab !== "prioritas") return [];
+
+    const base = prioritySLSStats.filter(item => {
+      // Subdistrict filter
+      if (selectedKec !== "all" && item.namaKec !== selectedKec) {
+        return false;
+      }
+
+      // Search query filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          item.slsCode.toLowerCase().includes(query) ||
+          item.namaKec.toLowerCase().includes(query) ||
+          item.koseka.toLowerCase().includes(query) ||
+          item.pencacah.toLowerCase().includes(query) ||
+          item.pengawas.toLowerCase().includes(query)
+        );
+      }
+
+      return true;
+    });
+
+    // Sorting
+    if (sortBy === "nama") {
+      return base.sort((a, b) => a.slsCode.localeCompare(b.slsCode));
+    } else if (sortBy === "realisasi_desc") {
+      return base.sort((a, b) => b.realisasi - a.realisasi);
+    } else if (sortBy === "realisasi_asc") {
+      return base.sort((a, b) => a.realisasi - b.realisasi);
+    } else if (sortBy === "pct_desc") {
+      return base.sort((a, b) => {
+        const pctA = a.total > 0 ? (a.realisasi / a.total) : 0;
+        const pctB = b.total > 0 ? (b.realisasi / b.total) : 0;
+        return pctB - pctA;
+      });
+    } else if (sortBy === "pct_asc") {
+      return base.sort((a, b) => {
+        const pctA = a.total > 0 ? (a.realisasi / a.total) : 0;
+        const pctB = b.total > 0 ? (b.realisasi / b.total) : 0;
+        return pctA - pctB;
+      });
+    }
+
+    return base;
+  }, [prioritySLSStats, activeTab, selectedKec, searchQuery, sortBy]);
+
   // Filtered officers list
   const filteredOfficers = useMemo(() => {
     const base = aggregatedStats.filter(off => {
@@ -514,6 +650,46 @@ export default function PetugasPage() {
       const link = document.createElement("a");
       link.setAttribute("href", url);
       link.setAttribute("download", `monitoring_kecamatan_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    if (activeTab === "prioritas") {
+      const headers = [
+        "Kode SLS", "Kecamatan", "Koseka", "Pencacah (PCL)", "Pengawas (PML)", 
+        "Total Target", "OPEN", "DRAFT", "SUBMITTED BY Pencacah", 
+        "REJECTED BY Pengawas", "APPROVED BY Pengawas", "Progres", "Realisasi", "Realisasi (%)"
+      ];
+      const csvRows = [headers.join(",")];
+
+      filteredPrioritySLS.forEach(item => {
+        const pct = item.total > 0 ? ((item.realisasi / item.total) * 100).toFixed(2) : "0.00";
+        const row = [
+          `"${item.slsCode}"`,
+          `"${formatKecName(item.namaKec).replace(/"/g, '""')}"`,
+          `"${item.koseka.replace(/"/g, '""')}"`,
+          `"${item.pencacah.replace(/"/g, '""')}"`,
+          `"${item.pengawas.replace(/"/g, '""')}"`,
+          item.total,
+          item.open,
+          item.draft,
+          item.submit,
+          item.reject,
+          item.approve,
+          item.progress,
+          item.realisasi,
+          `"${pct}%"`
+        ];
+        csvRows.push(row.join(","));
+      });
+
+      const csvBlob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(csvBlob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `monitoring_prioritas_${Date.now()}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -741,6 +917,20 @@ export default function PetugasPage() {
                     <Building className="w-4 h-4" />
                     Kecamatan
                   </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab("prioritas");
+                      setExpandedRows(new Set());
+                    }}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+                      activeTab === "prioritas"
+                        ? "bg-white dark:bg-slate-900 text-orange-500 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    <Layers className="w-4 h-4" />
+                    SLS Prioritas
+                  </button>
                 </div>
 
                 {/* Actions */}
@@ -810,7 +1000,13 @@ export default function PetugasPage() {
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border bg-slate-50/50 dark:bg-slate-950/50 text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500/80 outline-none transition-all border-slate-200 dark:border-slate-800 appearance-none text-slate-700 dark:text-slate-200"
                   >
-                    <option value="nama">Nama Petugas (A-Z)</option>
+                    <option value="nama">
+                      {activeTab === "prioritas"
+                        ? "Kode SLS (A-Z)"
+                        : activeTab === "kecamatan"
+                        ? "Nama Kecamatan (A-Z)"
+                        : "Nama Petugas (A-Z)"}
+                    </option>
                     <option value="realisasi_desc">Realisasi Terbesar (Jumlah)</option>
                     <option value="realisasi_asc">Realisasi Terkecil (Jumlah)</option>
                     <option value="pct_desc">Persentase Terbesar (%)</option>
@@ -827,7 +1023,7 @@ export default function PetugasPage() {
             <div className="mb-6 p-4 rounded-xl border bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex gap-2.5 items-start">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
-                <span className="font-bold">Ketentuan Pewarnaan Merah:</span>
+                <span className="font-bold">Ketentuan Pewarnaan & Rekapitulasi:</span>
                 <ul className="list-disc list-inside mt-1 flex flex-col gap-0.5">
                   {activeTab === "pcl" ? (
                     <li>
@@ -837,9 +1033,13 @@ export default function PetugasPage() {
                     <li>
                       Untuk <span className="font-bold">Pengawas (PML)</span>: Baris diwarnai <span className="text-red-500 font-bold">merah</span> jika status <span className="font-bold">APPROVE</span> dan <span className="font-bold">REJECT</span>-nya masih 0 (menandakan belum ada berkas yang diperiksa).
                     </li>
-                  ) : (
+                  ) : activeTab === "kecamatan" ? (
                     <li>
                       Untuk <span className="font-bold">Kecamatan</span>: Baris diwarnai <span className="text-red-500 font-bold">merah</span> jika status <span className="font-bold">APPROVE</span> dan <span className="font-bold">REJECT</span>-nya masih 0 (menandakan belum ada berkas PML di kecamatan tersebut yang diperiksa).
+                    </li>
+                  ) : (
+                    <li>
+                      Untuk <span className="font-bold">SLS Prioritas</span>: Baris diwarnai dengan warna latar belakang <span className="text-orange-500 font-bold">oranye</span> premium. Nama PCL dan PML digabung, dan rekap menggunakan data Pengawas sebagai sumber utama.
                     </li>
                   )}
                   <li>
@@ -855,21 +1055,37 @@ export default function PetugasPage() {
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-900 shadow-[0_1px_0_0_rgba(226,232,240,1)] dark:shadow-[0_1px_0_0_rgba(30,41,59,1)]">
                     <tr className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-wider">
-                      <th className="py-4 px-4 w-10 bg-slate-50 dark:bg-slate-900"></th>
+                      {activeTab !== "prioritas" && (
+                        <th className="py-4 px-4 w-10 bg-slate-50 dark:bg-slate-900"></th>
+                      )}
                       <th className="py-4 px-2 w-12 text-center bg-slate-50 dark:bg-slate-900">No</th>
                       <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">
-                        {activeTab === "kecamatan" ? "Nama Kecamatan" : "Nama Petugas"}
+                        {activeTab === "prioritas"
+                          ? "Kode SLS"
+                          : activeTab === "kecamatan"
+                          ? "Nama Kecamatan"
+                          : "Nama Petugas"}
                       </th>
-                      {activeTab !== "kecamatan" && (
+                      {activeTab === "prioritas" && (
+                        <>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Kecamatan</th>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Koseka</th>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Pencacah (PCL)</th>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Pengawas (PML)</th>
+                        </>
+                      )}
+                      {activeTab !== "kecamatan" && activeTab !== "prioritas" && (
                         <>
                           <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Kecamatan</th>
                           <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Koseka</th>
                         </>
                       )}
                       {activeTab === "kecamatan" && (
-                        <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Jumlah PML</th>
+                        <>
+                          <th className="py-4 px-4 bg-slate-50 dark:bg-slate-900">Jumlah PML</th>
+                          <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">SLS</th>
+                        </>
                       )}
-                      <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">SLS</th>
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">Target</th>
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">Open</th>
                       <th className="py-4 px-4 text-center bg-slate-50 dark:bg-slate-900">Draft</th>
@@ -1006,6 +1222,72 @@ export default function PetugasPage() {
                                 </tr>
                               )}
                             </React.Fragment>
+                          );
+                        })
+                      )
+                    ) : activeTab === "prioritas" ? (
+                      filteredPrioritySLS.length === 0 ? (
+                        <tr>
+                          <td colSpan={15} className="py-10 text-center text-slate-500 dark:text-slate-400 text-xs">
+                            Tidak ada data SLS Prioritas yang cocok dengan filter atau pencarian Anda.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPrioritySLS.map((item, index) => {
+                          const pctRealisasi = item.total > 0 ? ((item.realisasi / item.total) * 100).toFixed(2) : "0.00";
+                          return (
+                            <tr
+                              key={item.slsCode}
+                              className="border-b border-orange-500/20 dark:border-orange-500/10 bg-orange-500/[0.03] dark:bg-orange-500/[0.015] hover:bg-orange-500/[0.06] dark:hover:bg-orange-500/[0.03] transition-colors text-xs border-l-4 border-l-orange-500"
+                            >
+                              <td className="py-3 px-2 text-center font-semibold text-slate-400 dark:text-slate-500">
+                                {index + 1}
+                              </td>
+                              <td className="py-3 px-4 font-bold text-slate-900 dark:text-slate-100 font-mono">
+                                {item.slsCode}
+                              </td>
+                              <td className="py-3 px-4 font-normal text-slate-700 dark:text-slate-300">
+                                {formatKecName(item.namaKec)}
+                              </td>
+                              <td className="py-3 px-4 font-normal text-slate-700 dark:text-slate-300">
+                                {item.koseka}
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">
+                                {item.pencacah}
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">
+                                {item.pengawas}
+                              </td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">
+                                {item.total}
+                              </td>
+                              <td className="py-3 px-4 text-center font-normal text-amber-500/90">
+                                {item.open}
+                              </td>
+                              <td className="py-3 px-4 text-center font-normal text-blue-500/90">
+                                {item.draft}
+                              </td>
+                              <td className="py-3 px-4 text-center font-normal text-teal-500/90">
+                                {item.submit}
+                              </td>
+                              <td className="py-3 px-4 text-center font-normal text-red-500/90">
+                                {item.reject}
+                              </td>
+                              <td className="py-3 px-4 text-center font-normal text-emerald-500/90">
+                                {item.approve}
+                              </td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">
+                                {item.progress}
+                              </td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">
+                                {item.realisasi}
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`inline-flex px-2.5 py-0.5 rounded-full font-extrabold text-xs bg-orange-500/10 text-orange-500 border border-orange-500/20`}>
+                                  {pctRealisasi}%
+                                </span>
+                              </td>
+                            </tr>
                           );
                         })
                       )
